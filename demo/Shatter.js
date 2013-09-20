@@ -1,4 +1,6 @@
-(function() {
+(function(global) {
+    var Demo = global.Demo
+
     Demo.add({
         name: 'Shatter.'
         ,messageString: "Right click something to shatter it."

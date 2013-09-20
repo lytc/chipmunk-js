@@ -1,4 +1,6 @@
-(function() {
+(function(global) {
+    var Demo = global.Demo
+
     var HOOK_SENSOR = 1;
     var CRATE = 0;
 

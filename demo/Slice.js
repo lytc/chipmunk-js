@@ -1,4 +1,6 @@
-(function() {
+(function(global) {
+    var Demo = global.Demo
+
     Demo.add({
         name: 'Slice.'
         ,messageString: "Right click and drag to slice up the block."
