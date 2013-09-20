@@ -1,4 +1,6 @@
-(function() {
+(function(global) {
+    var Demo = global.Demo
+
     var numBalls = 5
 
     Demo.add({

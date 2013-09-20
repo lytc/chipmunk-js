@@ -1,4 +1,6 @@
-(function() {
+(function(global) {
+    var Demo = global.Demo
+
     var Base = Demo.Base = function() {
         this.space = new cp.Space()
         window.space = this.space

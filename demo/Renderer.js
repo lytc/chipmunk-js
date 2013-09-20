@@ -1,4 +1,6 @@
-(function() {
+(function(global) {
+    var Demo = global.Demo
+
     var Renderer  = Demo.Renderer = function(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d')

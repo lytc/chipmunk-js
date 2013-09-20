@@ -1,4 +1,6 @@
-(function() {
+(function(global) {
+    var Demo = global.Demo
+
     Demo.add({
         name: 'One Way Platforms'
         ,messageString: "One way platforms are trivial in Chipmunk using a very simple collision callback."

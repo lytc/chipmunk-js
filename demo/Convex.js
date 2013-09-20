@@ -1,4 +1,6 @@
-(function() {
+(function(global) {
+    var Demo = global.Demo
+
     var DENSITY = (1.0/10000.0)
 
     Demo.add({

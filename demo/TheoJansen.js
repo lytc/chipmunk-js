@@ -4,7 +4,9 @@
  * Read more here: http://en.wikipedia.org/wiki/Theo_Jansen
  */
 
-(function() {
+(function(global) {
+    var Demo = global.Demo
+
     /*cpFloat*/ var seg_radius = 3.0;
 
     Demo.add({

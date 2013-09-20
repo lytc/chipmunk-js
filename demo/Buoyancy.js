@@ -1,6 +1,8 @@
-(function() {
+(function(global) {
     var FLUID_DENSITY = 0.00014
     var FLUID_DRAG = 2.0
+
+    var Demo = global.Demo
 
     Demo.add({
         name: 'Simple Sensor based fluids.'

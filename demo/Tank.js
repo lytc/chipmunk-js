@@ -1,4 +1,6 @@
-(function(root) {
+(function(global) {
+    var Demo = global.Demo
+
     Demo.add({
         name: 'Tank'
         ,messageString: "Use the mouse to drive the tank, it will follow the cursor."

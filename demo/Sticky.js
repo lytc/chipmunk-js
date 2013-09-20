@@ -1,4 +1,6 @@
-(function(root) {
+(function(global) {
+    var Demo = global.Demo
+
     var	COLLIDE_STICK_SENSOR = 1
     var STICK_SENSOR_THICKNESS = 2.5
 
