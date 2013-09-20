@@ -53,7 +53,8 @@ module.exports = function (grunt) {
                     wrap: 'cp',
                     mangle: false,
                     compress: false,
-                    beautify: true
+                    beautify: true,
+                    preserveComments: 'all'
                 },
                 files: {
                     'cp.js': 'cp.min.js'
@@ -62,12 +63,12 @@ module.exports = function (grunt) {
 
             minify: {
                 options: {
-                    wrap: 'cp',
                     compress: {
                         global_defs: {
                             NDEBUG: false
                         }
-                    }
+                    },
+                    preserveComments: 'some'
                 },
                 files: {
                     'cp.min.js': 'cp.js'
