@@ -130,4 +130,6 @@
         Demo.renderer.drawRect(pos, width, height, new Demo.Color(200, 210, 230, 1.0))
     }
 
-})(this)
+})(function() {
+   return this;
+}())

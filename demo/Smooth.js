@@ -90,4 +90,6 @@
 
     var MAX = function(a, b) {return a > b ? a : b}
     var MIN = function(a, b) {return a < b ? a : b}
-})(this)
+})(function() {
+   return this;
+}())

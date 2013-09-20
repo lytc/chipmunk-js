@@ -153,4 +153,6 @@
 
         return body;
     }
-})(this)
+})(function() {
+   return this;
+}())

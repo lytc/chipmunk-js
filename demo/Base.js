@@ -51,4 +51,6 @@
         return child
     }
 
-})(this)
+})(function() {
+   return this;
+}())

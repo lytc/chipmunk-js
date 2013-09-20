@@ -102,4 +102,6 @@
             }
         }
     })
-})(this)
+})(function() {
+   return this;
+}())

@@ -106,4 +106,6 @@
         shape.setElasticity(0.0);
         shape.setFriction(0.7);
     }
-})(this)
+})(function() {
+   return this;
+}())

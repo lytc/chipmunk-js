@@ -59,4 +59,6 @@
         shape.setElasticity(0.0);
         shape.setFriction(0.6);
     }
-})(this)
+})(function() {
+   return this;
+}())

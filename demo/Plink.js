@@ -91,4 +91,6 @@
     }
 
     var NUM_VERTS = 5
-})(this)
+})(function() {
+   return this;
+}())

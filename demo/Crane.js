@@ -130,4 +130,6 @@
 //	HOOK_SENSOR = 1,
 //	CRATE,
 //};
-})(this)
+})(function() {
+   return this;
+}())

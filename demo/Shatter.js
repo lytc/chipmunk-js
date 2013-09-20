@@ -222,4 +222,6 @@
             }
         }
     }
-})(this)
+})(function() {
+   return this;
+}())

@@ -104,4 +104,6 @@
             space.addPostStepCallback(/*/*(cpPostStepFunc)*/BreakablejointPostStepRemove, joint, null);
         }
     }
-})(this)
+})(function() {
+   return this;
+}())

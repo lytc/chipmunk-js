@@ -104,4 +104,6 @@
         }
     })
     /*static cpShape*/ var shape1, shape2;
-})(this)
+})(function() {
+   return this;
+}())

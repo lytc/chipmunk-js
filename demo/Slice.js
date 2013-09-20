@@ -143,4 +143,6 @@
             context.space.addPostStepCallback(/*(cpPostStepFunc)*/SliceShapePostStep, shape, context);
         }
     }
-})(this)
+})(function() {
+   return this;
+}())

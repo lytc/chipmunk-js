@@ -131,4 +131,6 @@
         constraint = space.addConstraint(new cp.PinJoint(crank, lower_leg, anchor, cp.vzero));
         constraint.dist = diag;
     }
-})(this)
+})(function() {
+   return this;
+}())

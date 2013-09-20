@@ -156,4 +156,6 @@
             arb.data = null;
         }
     }
-})(this)
+})(function() {
+   return this;
+}())

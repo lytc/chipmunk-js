@@ -128,4 +128,6 @@
         motor.maxForce = (8.0e4);
     }
 
-})(this)
+})(function() {
+   return this;
+}())

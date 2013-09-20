@@ -481,4 +481,6 @@
     }
 
     global.Demo = Demo;
-})(this)
+})(function() {
+   return this;
+}())

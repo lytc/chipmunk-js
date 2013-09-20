@@ -139,4 +139,6 @@
 
         body.v.y = cp.fclamp(body.v.y, -FALL_VELOCITY, Infinity);
     }
-})(this)
+})(function() {
+   return this;
+}())

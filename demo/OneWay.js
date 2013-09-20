@@ -75,4 +75,6 @@
 
         return true;
     }
-})(this)
+})(function() {
+   return this;
+}())

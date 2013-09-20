@@ -78,4 +78,6 @@
             this.space.step(dt);
         }
     })
-})(this)
+})(function() {
+   return this;
+}())

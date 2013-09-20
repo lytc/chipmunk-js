@@ -298,4 +298,6 @@
         return [x1 + (idx * (x2 - x1)), y1 + (idx * (y2 - y1))];
     };
 
-})(this)
+})(function() {
+   return this;
+}())

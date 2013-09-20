@@ -92,4 +92,6 @@
     var NeverCollide = function(/*cpArbiter **/arb, /*cpSpace **/space, /*void **/data){
         return false;
     }
-})(this)
+})(function() {
+   return this;
+}())

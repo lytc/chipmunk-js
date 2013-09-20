@@ -137,4 +137,6 @@
         context.magnitudeSum += cp.v.len(j);
         context.vectorSum = cp.v.add(context.vectorSum, j);
     }
-})(this)
+})(function() {
+   return this;
+}())
