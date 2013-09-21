@@ -1,4 +1,13 @@
 module.exports = function (grunt) {
+    var fs = require('fs')
+    var license = fs.readFileSync('LICENSE.txt', {encoding: 'utf8'})
+    license = '/*\n * ' + license.replace(/\n/g, '\n * ') + '\n */\n\n'
+
+    license += '/*\n' +
+     ' * Chipmunk JS 6.2.0 - Port of Chipmunk Physics\n' +
+     ' * @author lytc\n' +
+     ' */\n'
+
     var files = [
         'src/chipmunk.js',
         'include/chipmunk/chipmunk_types.js',
@@ -50,6 +59,7 @@ module.exports = function (grunt) {
         uglify: {
             debug: {
                 options: {
+                    banner: license,
                     wrap: 'cp',
                     mangle: false,
                     compress: false,
@@ -63,6 +73,7 @@ module.exports = function (grunt) {
 
             minify: {
                 options: {
+                    banner: license,
                     compress: {
                         global_defs: {
                             NDEBUG: false
@@ -74,7 +85,6 @@ module.exports = function (grunt) {
                     'cp.min.js': 'cp.js'
                 }
             }
-
         }
     });
 

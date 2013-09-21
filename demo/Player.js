@@ -112,7 +112,7 @@
         /*int*/ var jumpState = (Demo.keyboard.y > 0.0);
 
         // Grab the grounding normal from last frame
-        /*cpVect*/ var groundNormal = cp.vzero;
+        /*cpVect*/ var groundNormal = cp.v(0, 0);
         playerBody.eachArbiter(/*(cpBodyArbiterIteratorFunc)*/SelectPlayerGroundNormal, groundNormal);
 
         grounded = (groundNormal.y > 0.0);
