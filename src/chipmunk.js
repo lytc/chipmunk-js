@@ -5,6 +5,10 @@ var CP_VERSION_MINOR = 2
 var CP_VERSION_RELEASE = 0
 
 var cp = exports;
+if (typeof module != 'undefined') {
+    module.exports = cp;
+}
+
 var _nothing = function () {
 };
 
@@ -172,7 +176,7 @@ cp.momentForBox2 = function (/*cpFloat*/ m, /*cpBB*/ box) {
     /*cpFloat*/
     var height = box.t - box.b;
     /*cpVect*/
-    var offset = cpvmult(cpv(box.l + box.r, box.b + box.t), 0.5);
+    var offset = cpvmult(new Vect(box.l + box.r, box.b + box.t), 0.5);
 
     // TODO NaN when offset is 0 and m is Infinity
     return cpMomentForBox(m, width, height) + m * cpvlengthsq(offset);

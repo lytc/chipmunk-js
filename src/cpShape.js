@@ -73,6 +73,9 @@ Shape.prototype.getBody = function () {
 Shape.prototype.getBB = function () {
     return this.bb;
 }
+Shape.prototype.setRadius = function(radius) {
+    this.r = radius;
+}
 
 //void
 Shape.prototype.setBody = function (/*cpBody*/ body) {
@@ -183,7 +186,7 @@ CircleShape.prototype.nearestPointQuery = function (/*cpVect*/ p) {
     var d = d - r;
 
     // Use up for the gradient if the distance is very small.
-    var g = (d > MAGIC_EPSILON ? cpvmult(delta, 1.0 / d) : cpv(0.0, 1.0));
+    var g = (d > MAGIC_EPSILON ? cpvmult(delta, 1.0 / d) : new Vect(0.0, 1.0));
 
     return new cpNearestPointQueryInfo(circle, p, d, g);
 }
@@ -314,8 +317,8 @@ SegmentShape.prototype.segmentQuery = function (/*cpVect*/ a, /*cpVect*/ b) {
         }
     } else if (r != 0.0) {
         /*cpSegmentQueryInfo*/
-        var info1 = CircleSegmentQuery(/*cpShape*/seg, seg.ta, seg.r, a, b, info1);
-        var info2 = CircleSegmentQuery(/*cpShape*/seg, seg.tb, seg.r, a, b, info2);
+        var info1 = CircleSegmentQuery(/*cpShape*/seg, seg.ta, seg.r, a, b);
+        var info2 = CircleSegmentQuery(/*cpShape*/seg, seg.tb, seg.r, a, b);
 
         if (info1 && info2) {
             return info1.t < info2.t? info1 : info2;
@@ -343,14 +346,6 @@ SegmentShape.prototype.setNeighbors = function (/*cpVect*/ prev, /*cpVect*/ next
 // Unsafe API (chipmunk_unsafe.h)
 
 //void
-CircleShape.setRadius = function (/*cpFloat*/ radius) {
-    /*cpCircleShape*/
-    var circle = this;
-
-    circle.r = radius;
-}
-
-//void
 CircleShape.prototype.setOffset = function (/*cpVect*/ offset) {
     this.c = offset;
 }
@@ -363,10 +358,4 @@ SegmentShape.prototype.setEndpoints = function (/*cpVect*/ a, /*cpVect*/ b) {
     seg.a = a;
     seg.b = b;
     seg.n = cpvperp(cpvnormalize(cpvsub(b, a)));
-}
-
-//void
-SegmentShape.prototype.setRadius = function (/*cpFloat*/ radius) {
-
-    this.r = radius;
 }

@@ -2,9 +2,9 @@
 var Body = cp.Body = function (/*cpFloat*/ m, /*cpFloat*/ i) {
     var body = this;
 
-    body.p = cpv(0, 0);
-    body.v = cpv(0, 0);
-    body.f = cpv(0, 0);
+    body.p = new Vect(0, 0);
+    body.v = new Vect(0, 0);
+    body.f = new Vect(0, 0);
 
     body.v_bias = new Vect(0, 0);
 //    this.rot = cpvforangle(0.0)

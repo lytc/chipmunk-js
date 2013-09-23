@@ -53,28 +53,25 @@ var arbiterThread = function (next, prev) {
 var Arbiter = cp.Arbiter = function (/*cpShape*/ a, /*cpShape*/ b) {
     var arb = this;
 
-    arb.surface_vr = cpv(0, 0);
+    arb.surface_vr = new Vect(0, 0);
 
     arb.a = a;
     arb.body_a = a.body;
     arb.b = b;
     arb.body_b = b.body;
 
-    contacts: null,
-
     arb.thread_a = new arbiterThread(null, null)
     arb.thread_b = new arbiterThread(null, null)
 }
 
-Arbiter.prototype = {
-    handler: null,
-    swappedColl: false,
-    e: 0.0,
-    u: 0.0,
-    stamp: 0.0,
-    state: cpArbiterStateFirstColl,
-    data: null
-}
+Arbiter.prototype.handler = null;
+Arbiter.prototype.contacts = null;
+Arbiter.prototype.swappedColl = null;
+Arbiter.prototype.e = 0.0;
+Arbiter.prototype.u = 0.0;
+Arbiter.prototype.stamp = 0.0;
+Arbiter.prototype.state = cpArbiterStateFirstColl;
+Arbiter.prototype.data = null;
 
 Arbiter.prototype.reset = function (/*cpShape*/ a, /*cpShape*/ b) {
     var arb = this;
@@ -204,7 +201,7 @@ Arbiter.prototype.totalImpulseWithFriction = function () {
     for (var i = 0, count = arb.getCount(); i < count; i++) {
         /*cpContact*/
         var con = contacts[i];
-        sum = cpvadd(sum, cpvrotate(con.n, cpv(con.jnAcc, con.jtAcc)));
+        sum = cpvadd(sum, cpvrotate(con.n, new Vect(con.jnAcc, con.jtAcc)));
     }
 
     return (arb.swappedColl ? sum : cpvneg(sum));

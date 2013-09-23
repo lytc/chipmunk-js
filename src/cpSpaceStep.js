@@ -29,7 +29,7 @@ Space.prototype.addPostStepCallback = function (/*cpPostStepFunc*/ func, /*void*
     if (!space.getPostStepCallback(key)) {
 //		/*cpPostStepCallback*/ var callback = /*cpPostStepCallback*/cpcalloc(1, sizeof(cpPostStepCallback));
         /*cpPostStepCallback*/
-        var callback = new cpPostStepCallback((func ? func : _nothing()), key, data);
+        var callback = new cpPostStepCallback((func ? func : _nothing), key, data);
 //		callback.func = (func ? func : PostStepDoNothing);
 //		callback.key = key;
 //		callback.data = data;
@@ -320,9 +320,7 @@ Space.prototype.step = function (/*cpFloat*/ dt) {
         /*cpVect*/
         var gravity = space.gravity;
         for (var i = 0; i < bodies.length; i++) {
-            /*cpBody*/
-            var body = /*cpBody*/bodies[i];
-            body.updateVelocity(gravity, damping, dt);
+            bodies[i].updateVelocity(gravity, damping, dt);
         }
 
         // Apply cached impulses
@@ -334,9 +332,7 @@ Space.prototype.step = function (/*cpFloat*/ dt) {
         }
 
         for (var i = 0; i < constraintLen; i++) {
-            /*cpConstraint*/
-            var constraint = /*cpConstraint*/constraints[i];
-            constraint.applyCachedImpulse(dt_coef);
+            constraints[i].applyCachedImpulse(dt_coef);
         }
 
         // Run the impulse solver.
@@ -346,18 +342,13 @@ Space.prototype.step = function (/*cpFloat*/ dt) {
             }
 
             for (var j = 0; j < constraintLen; j++) {
-                /*cpConstraint*/
-                var constraint = /*cpConstraint*/constraints[j];
-                constraint.applyImpulse(dt);
+                constraints[j].applyImpulse(dt);
             }
         }
 
         // Run the constraint post-solve callbacks
         for (var i = 0; i < constraintLen; i++) {
-            /*cpConstraint*/
-            var constraint = /*cpConstraint*/constraints[i];
-
-            constraint.postSolve(space);
+            constraints[i].postSolve(space);
         }
 
         // run the post-solve callbacks

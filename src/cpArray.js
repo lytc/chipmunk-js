@@ -4,6 +4,5 @@ var cpArrayDeleteObj = function (/*cpArray*/ arr, /*void*/ obj) {
     if (-1 != index) {
         arr[index] = arr[arr.length - 1];
         arr.pop()
-//        arr.splice(index, 1)
     }
 }

@@ -31,6 +31,9 @@
     var CP_VERSION_MINOR = 2;
     var CP_VERSION_RELEASE = 0;
     var cp = exports;
+    if (typeof module != "undefined") {
+        module.exports = cp;
+    }
     var _nothing = function() {};
     var _merge = function(dest, source) {
         for (var i in source) {
@@ -168,7 +171,7 @@
         /*cpFloat*/
         var height = box.t - box.b;
         /*cpVect*/
-        var offset = cpvmult(cpv(box.l + box.r, box.b + box.t), .5);
+        var offset = cpvmult(new Vect(box.l + box.r, box.b + box.t), .5);
         // TODO NaN when offset is 0 and m is Infinity
         return cpMomentForBox(m, width, height) + m * cpvlengthsq(offset);
     };
@@ -1385,11 +1388,12 @@
         arb.body_a = a.body;
         arb.b = b;
         arb.body_b = b.body;
-        contacts: null, arb.thread_a = new arbiterThread(null, null);
+        arb.thread_a = new arbiterThread(null, null);
         arb.thread_b = new arbiterThread(null, null);
     };
     Arbiter.prototype.handler = null;
-    Arbiter.prototype.swappedColl = false;
+    Arbiter.prototype.contacts = null;
+    Arbiter.prototype.swappedColl = null;
     Arbiter.prototype.e = 0;
     Arbiter.prototype.u = 0;
     Arbiter.prototype.stamp = 0;
@@ -1498,7 +1502,7 @@
         for (var i = 0, count = arb.getCount(); i < count; i++) {
             /*cpContact*/
             var con = contacts[i];
-            sum = cpvadd(sum, cpvrotate(con.n, cpv(con.jnAcc, con.jtAcc)));
+            sum = cpvadd(sum, cpvrotate(con.n, new Vect(con.jnAcc, con.jtAcc)));
         }
         return arb.swappedColl ? sum : cpvneg(sum);
     };
@@ -1680,7 +1684,6 @@
     //	}
     //}
     Arbiter.prototype.applyImpulse = function() {
-        this._caches || (this._caches = {});
         var arb = this;
         /*cpBody*/
         var a = arb.body_a;
@@ -1701,10 +1704,6 @@
             var r1 = con.r1;
             /*cpVect*/
             var r2 = con.r2;
-            var key = [ n.x, n.y, r1, r2, nMass ].join("-");
-            if (this._caches[key]) {} else {
-                this._caches[key] = 1;
-            }
             //		/*cpVect*/ var vb1 = cpvadd(a.v_bias, cpvmult(cpvperp(r1), a.w_bias));
             //      /*cpVect*/ var vb2 = cpvadd(b.v_bias, cpvmult(cpvperp(r2), b.w_bias));
             //        /*cpVect*/ var vr = cpvadd(relative_velocity(a, b, r1, r2), surface_vr);
@@ -2819,9 +2818,9 @@
     //cpBody *
     var Body = cp.Body = function(/*cpFloat*/ m, /*cpFloat*/ i) {
         var body = this;
-        body.p = cpv(0, 0);
-        body.v = cpv(0, 0);
-        body.f = cpv(0, 0);
+        body.p = new Vect(0, 0);
+        body.v = new Vect(0, 0);
+        body.f = new Vect(0, 0);
         body.v_bias = new Vect(0, 0);
         //    this.rot = cpvforangle(0.0)
         this.rot = new Vect(1, 0);
@@ -3130,7 +3129,7 @@
             /*cpFloat*/
             var dist = cpfsqrt(distsq);
             /*cpVect*/
-            var n = dist ? cpvmult(delta, 1 / dist) : cpv(1, 0);
+            var n = dist ? cpvmult(delta, 1 / dist) : new Vect(1, 0);
             con.push(new Contact(cpvlerp(p1, p2, r1 / (r1 + r2)), n, dist - mindist, hash));
             return 1;
         } else {
@@ -3861,6 +3860,9 @@
     Shape.prototype.getBB = function() {
         return this.bb;
     };
+    Shape.prototype.setRadius = function(radius) {
+        this.r = radius;
+    };
     //void
     Shape.prototype.setBody = function(/*cpBody*/ body) {
         var shape = this;
@@ -3950,7 +3952,7 @@
         // TODO div/0
         var d = d - r;
         // Use up for the gradient if the distance is very small.
-        var g = d > MAGIC_EPSILON ? cpvmult(delta, 1 / d) : cpv(0, 1);
+        var g = d > MAGIC_EPSILON ? cpvmult(delta, 1 / d) : new Vect(0, 1);
         return new cpNearestPointQueryInfo(circle, p, d, g);
     };
     //static void
@@ -4056,8 +4058,8 @@
             }
         } else if (r != 0) {
             /*cpSegmentQueryInfo*/
-            var info1 = CircleSegmentQuery(/*cpShape*/ seg, seg.ta, seg.r, a, b, info1);
-            var info2 = CircleSegmentQuery(/*cpShape*/ seg, seg.tb, seg.r, a, b, info2);
+            var info1 = CircleSegmentQuery(/*cpShape*/ seg, seg.ta, seg.r, a, b);
+            var info2 = CircleSegmentQuery(/*cpShape*/ seg, seg.tb, seg.r, a, b);
             if (info1 && info2) {
                 return info1.t < info2.t ? info1 : info2;
             }
@@ -4077,12 +4079,6 @@
     };
     // Unsafe API (chipmunk_unsafe.h)
     //void
-    CircleShape.setRadius = function(/*cpFloat*/ radius) {
-        /*cpCircleShape*/
-        var circle = this;
-        circle.r = radius;
-    };
-    //void
     CircleShape.prototype.setOffset = function(/*cpVect*/ offset) {
         this.c = offset;
     };
@@ -4093,10 +4089,6 @@
         seg.a = a;
         seg.b = b;
         seg.n = cpvperp(cpvnormalize(cpvsub(b, a)));
-    };
-    //void
-    SegmentShape.prototype.setRadius = function(/*cpFloat*/ radius) {
-        this.r = radius;
     };
     //cpPolyShape *
     var PolyShape = cp.PolyShape = function(/*cpBody*/ body, /*const cpVect*/ verts, /*cpVect*/ offset) {
@@ -4293,17 +4285,13 @@
         // TODO: Why did I add this? It duplicates work from above.
         for (/*int*/ i = 0; i < verts.length; i++) {
             poly.planes[i] = cpSplittingPlaneNew(poly.verts[(i - 1 + numVerts) % numVerts], poly.verts[i]);
-            poly.tPlanes[i] = new cpSplittingPlane(cpv(0, 0), 0);
+            poly.tPlanes[i] = new cpSplittingPlane(new Vect(0, 0), 0);
         }
     };
     //void
     PolyShape.prototype.setVerts = function(/*cpVect*/ verts, /*cpVect*/ offset) {
         var shape = this;
         setUpVerts(/*cpPolyShape*/ shape, verts, offset);
-    };
-    //void
-    PolyShape.prototype.setRadius = function(/*cpFloat*/ radius) {
-        this.r = radius;
     };
     //cpPolyShape *
     var PolyShape2 = cp.PolyShape2 = function(/*cpBody*/ body, /*const cpVect*/ verts, /*cpVect*/ offset, /*cpFloat*/ radius) {
@@ -4326,7 +4314,7 @@
     };
     //cpPolyShape *
     var BoxShape3 = cp.BoxShape3 = function(/*cpBody*/ body, /*cpBB*/ box, /*cpFloat*/ radius) {
-        var verts = [ cpv(box.l, box.b), cpv(box.l, box.t), cpv(box.r, box.t), cpv(box.r, box.b) ];
+        var verts = [ new Vect(box.l, box.b), new Vect(box.l, box.t), new Vect(box.r, box.t), new Vect(box.r, box.b) ];
         PolyShape2.call(this, body, verts, cpvzero, radius);
     };
     _extend(PolyShape, PolyShape2);
@@ -4373,7 +4361,7 @@
         space.enableContactGraph = false;
         space.arbiters = [];
         space.pooledArbiters = [];
-        space.contactBuffersHead = null;
+        //    space.contactBuffersHead = null;
         space.cachedArbiters = {};
         space.constraints = [];
         space.defaultHandler = cpDefaultCollisionHandler;
@@ -5269,7 +5257,7 @@
         if (!space.getPostStepCallback(key)) {
             //		/*cpPostStepCallback*/ var callback = /*cpPostStepCallback*/cpcalloc(1, sizeof(cpPostStepCallback));
             /*cpPostStepCallback*/
-            var callback = new cpPostStepCallback(func ? func : _nothing(), key, data);
+            var callback = new cpPostStepCallback(func ? func : _nothing, key, data);
             //		callback.func = (func ? func : PostStepDoNothing);
             //		callback.key = key;
             //		callback.data = data;
@@ -5496,9 +5484,7 @@
             /*cpVect*/
             var gravity = space.gravity;
             for (var i = 0; i < bodies.length; i++) {
-                /*cpBody*/
-                var body = /*cpBody*/ bodies[i];
-                body.updateVelocity(gravity, damping, dt);
+                bodies[i].updateVelocity(gravity, damping, dt);
             }
             // Apply cached impulses
             /*cpFloat*/
@@ -5507,9 +5493,7 @@
                 arbiters[i].applyCachedImpulse(dt_coef);
             }
             for (var i = 0; i < constraintLen; i++) {
-                /*cpConstraint*/
-                var constraint = /*cpConstraint*/ constraints[i];
-                constraint.applyCachedImpulse(dt_coef);
+                constraints[i].applyCachedImpulse(dt_coef);
             }
             // Run the impulse solver.
             for (var i = 0; i < space.iterations; i++) {
@@ -5517,16 +5501,12 @@
                     arbiters[j].applyImpulse();
                 }
                 for (var j = 0; j < constraintLen; j++) {
-                    /*cpConstraint*/
-                    var constraint = /*cpConstraint*/ constraints[j];
-                    constraint.applyImpulse(dt);
+                    constraints[j].applyImpulse(dt);
                 }
             }
             // Run the constraint post-solve callbacks
             for (var i = 0; i < constraintLen; i++) {
-                /*cpConstraint*/
-                var constraint = /*cpConstraint*/ constraints[i];
-                constraint.postSolve(space);
+                constraints[i].postSolve(space);
             }
             // run the post-solve callbacks
             for (var i = 0; i < arbLen; i++) {

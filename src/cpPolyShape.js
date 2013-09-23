@@ -242,7 +242,7 @@ var setUpVerts = function (/*cpPolyShape **/poly, /*const cpVect **/verts, /*cpV
     // TODO: Why did I add this? It duplicates work from above.
     for (/*int*/ i = 0; i < verts.length; i++) {
         poly.planes[i] = cpSplittingPlaneNew(poly.verts[(i - 1 + numVerts) % numVerts], poly.verts[i]);
-        poly.tPlanes[i] = new cpSplittingPlane(cpv(0, 0), 0);
+        poly.tPlanes[i] = new cpSplittingPlane(new Vect(0, 0), 0);
     }
 }
 
@@ -252,11 +252,6 @@ PolyShape.prototype.setVerts = function (/*cpVect*/ verts, /*cpVect*/ offset) {
     setUpVerts(/*cpPolyShape*/shape, verts, offset);
 }
 
-//void
-PolyShape.prototype.setRadius = function (/*cpFloat*/ radius) {
-    this.r = radius;
-}
-
 //cpPolyShape *
 var PolyShape2 = cp.PolyShape2 = function (/*cpBody*/ body, /*const cpVect*/ verts, /*cpVect*/ offset, /*cpFloat*/ radius) {
     var poly = this;
@@ -264,8 +259,6 @@ var PolyShape2 = cp.PolyShape2 = function (/*cpBody*/ body, /*const cpVect*/ ver
 
     Shape.call(poly, body);
     poly.r = radius;
-//    poly.r = 1;
-//    return poly;
 }
 
 //cpPolyShape *
@@ -285,10 +278,10 @@ var BoxShape2 = cp.BoxShape2 = function (/*cpBody*/ body, /*cpBB*/ box) {
 //cpPolyShape *
 var BoxShape3 = cp.BoxShape3 = function (/*cpBody*/ body, /*cpBB*/ box, /*cpFloat*/ radius) {
     var verts = [
-        cpv(box.l, box.b),
-        cpv(box.l, box.t),
-        cpv(box.r, box.t),
-        cpv(box.r, box.b)
+        new Vect(box.l, box.b),
+        new Vect(box.l, box.t),
+        new Vect(box.r, box.t),
+        new Vect(box.r, box.b)
     ];
 
     PolyShape2.call(this, body, verts, cpvzero, radius)

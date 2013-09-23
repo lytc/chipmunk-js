@@ -55,7 +55,7 @@ var Space = cp.Space = function () {
     space.arbiters = [];
     space.pooledArbiters = [];
 
-    space.contactBuffersHead = null;
+//    space.contactBuffersHead = null;
     space.cachedArbiters = {};
 
     space.constraints = [];

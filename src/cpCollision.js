@@ -21,9 +21,8 @@ var CircleToCircleQuery = function (/*const cpVect*/ p1, /*const cpVect*/ p2, /*
         /*cpFloat*/
         var dist = cpfsqrt(distsq);
         /*cpVect*/
-        var n = (dist ? cpvmult(delta, 1.0 / dist) : cpv(1.0, 0.0));
+        var n = (dist ? cpvmult(delta, 1.0 / dist) : new Vect(1.0, 0.0));
         con.push(new Contact(cpvlerp(p1, p2, r1 / (r1 + r2)), n, dist - mindist, hash));
-
         return 1;
     } else {
         return 0;
