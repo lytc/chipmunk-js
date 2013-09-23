@@ -1862,13 +1862,15 @@
     //cpBool
     BB.prototype.intersects = function(/*const cpBB*/ b) {
         var a = this;
-        return a.l <= b.r && b.l <= a.r && a.b <= b.t && b.b <= a.t;
+        //    return (a.l <= b.r && b.l <= a.r && a.b <= b.t && b.b <= a.t);
+        return !(b.l > a.r || b.r < a.l || b.t < a.b || b.b > a.t);
     };
     /// Returns true if @c other lies completely within @c bb.
     //cpBool
     BB.prototype.containsBB = function(/*const cpBB*/ other) {
         var bb = this;
-        return bb.l <= other.l && bb.r >= other.r && bb.b <= other.b && bb.t >= other.t;
+        //    return (bb.l <= other.l && bb.r >= other.r && bb.b <= other.b && bb.t >= other.t);
+        return !(bb.l > other.l || bb.r < other.r || bb.b > other.b || bb.t < other.t);
     };
     /// Returns true if @c bb contains @c v.
     //cpBool
@@ -3118,22 +3120,22 @@
     // Used by several collision tests.
     // TODO should accept hash parameter
     //static int
-    var CircleToCircleQuery = function(/*const cpVect*/ p1, /*const cpVect*/ p2, /*const cpFloat*/ r1, /*const cpFloat*/ r2, /*cpHashValue*/ hash, /*cpContact **/ con) {
+    var CircleToCircleQuery = function(/*const cpVect*/ p1, /*const cpVect*/ p2, /*const cpFloat*/ r1, /*const cpFloat*/ r2, /*cpHashValue*/ hash) {
         /*cpFloat*/
         var mindist = r1 + r2;
         /*cpVect*/
-        var delta = cpvsub(p2, p1);
+        //    var delta = cpvsub(p2, p1);
+        var deltaX = p2.x - p1.x;
+        var deltaY = p2.y - p1.y;
         /*cpFloat*/
-        var distsq = cpvlengthsq(delta);
+        //    var distsq = cpvlengthsq(delta);
+        var distsq = deltaX * deltaX + deltaY * deltaY;
         if (distsq < mindist * mindist) {
             /*cpFloat*/
             var dist = cpfsqrt(distsq);
             /*cpVect*/
-            var n = dist ? cpvmult(delta, 1 / dist) : new Vect(1, 0);
-            con.push(new Contact(cpvlerp(p1, p2, r1 / (r1 + r2)), n, dist - mindist, hash));
-            return 1;
-        } else {
-            return 0;
+            var n = dist ? new Vect(deltaX / dist, deltaY / dist) : new Vect(1, 0);
+            return new Contact(cpvlerp(p1, p2, r1 / (r1 + r2)), n, dist - mindist, hash);
         }
     };
     //MARK: Support Points and Edges:
@@ -3147,7 +3149,8 @@
             /*cpVect*/
             var v = verts[i];
             /*cpFloat*/
-            var d = cpvdot(v, n);
+            //        var d = cpvdot(v, n);
+            var d = v.x * n.x + v.y * n.y;
             if (d > max) {
                 max = d;
                 index = i;
@@ -3184,7 +3187,8 @@
     var MinkoskiPoint = function(/*const struct SupportPoint*/ a, /*const struct SupportPoint*/ b) {
         this.a = a.p;
         this.b = b.p;
-        this.ab = cpvsub(b.p, a.p);
+        //    this.ab = cpvsub(b.p, a.p);
+        this.ab = new Vect(b.p.x - a.p.x, b.p.y - a.p.y);
         this.id = (a.id & 255) << 8 | b.id & 255;
     };
     /*struct*/
@@ -3197,7 +3201,8 @@
     //static inline struct MinkowskiPoint
     var Support = function(/*const struct SupportContext **/ ctx, /*const cpVect*/ n) {
         /*struct SupportPoint*/
-        var a = ctx.func1(ctx.shape1, cpvneg(n));
+        //    var a = ctx.func1(ctx.shape1, cpvneg(n));
+        var a = ctx.func1(ctx.shape1, new Vect(-n.x, -n.y));
         /*struct SupportPoint*/
         var b = ctx.func2(ctx.shape2, n);
         return new MinkoskiPoint(a, b);
@@ -3227,13 +3232,14 @@
         var i2 = (i1 + 1) % numVerts;
         /*cpVect **/
         var verts = poly.tVerts;
-        if (cpvdot(n, poly.tPlanes[i1].n) > cpvdot(n, poly.tPlanes[i2].n)) {
+        var planes = poly.tPlanes;
+        if (cpvdot(n, planes[i1].n) > cpvdot(n, planes[i2].n)) {
             /*struct Edge*/
-            var edge = new Edge(new EdgePoint(verts[i0], CP_HASH_PAIR(poly.hashid, i0)), new EdgePoint(verts[i1], CP_HASH_PAIR(poly.hashid, i1)), poly.r, poly.tPlanes[i1].n);
+            var edge = new Edge(new EdgePoint(verts[i0], CP_HASH_PAIR(poly.hashid, i0)), new EdgePoint(verts[i1], CP_HASH_PAIR(poly.hashid, i1)), poly.r, planes[i1].n);
             return edge;
         } else {
             /*struct Edge*/
-            var edge = new Edge(new EdgePoint(verts[i1], CP_HASH_PAIR(poly.hashid, i1)), new EdgePoint(verts[i2], CP_HASH_PAIR(poly.hashid, i2)), poly.r, poly.tPlanes[i2].n);
+            var edge = new Edge(new EdgePoint(verts[i1], CP_HASH_PAIR(poly.hashid, i1)), new EdgePoint(verts[i2], CP_HASH_PAIR(poly.hashid, i2)), poly.r, planes[i2].n);
             return edge;
         }
     };
@@ -3252,14 +3258,20 @@
     //static inline cpFloat
     var ClosestT = function(/*const cpVect*/ a, /*const cpVect*/ b) {
         /*cpVect*/
-        var delta = cpvsub(b, a);
-        return -cpfclamp(cpvdot(delta, cpvadd(a, b)) / cpvlengthsq(delta), -1, 1);
+        //    var delta = cpvsub(b, a);
+        //    return -cpfclamp(cpvdot(delta, cpvadd(a, b)) / cpvlengthsq(delta), -1.0, 1.0);
+        var deltaX = b.x - a.x;
+        var deltaY = b.y - a.y;
+        return -cpfclamp((deltaX * (a.x + b.x) + deltaY * (a.y + b.y)) / (deltaX * deltaX + deltaY * deltaY), -1, 1);
     };
     //static inline cpVect
     var LerpT = function(/*const cpVect*/ a, /*const cpVect*/ b, /*const cpFloat*/ t) {
         /*cpFloat*/
         var ht = .5 * t;
-        return cpvadd(cpvmult(a, .5 - ht), cpvmult(b, .5 + ht));
+        //    return cpvadd(cpvmult(a, 0.5 - ht), cpvmult(b, 0.5 + ht));
+        var f1 = .5 - ht;
+        var f2 = .5 + ht;
+        return new Vect(a.x * f1 + b.x * f2, a.y * f1 + b.y * f2);
     };
     //static inline struct ClosestPoints
     var ClosestPoints = function(/*const struct MinkowskiPoint*/ v0, /*const struct MinkowskiPoint*/ v1) {
@@ -3274,18 +3286,32 @@
         /*cpCollisionID*/
         var id = (v0.id & 65535) << 16 | v1.id & 65535;
         /*cpVect*/
-        var delta = cpvsub(v1.ab, v0.ab);
-        /*cpVect*/
-        var n = cpvnormalize(cpvperp(delta));
+        //    var delta = cpvsub(v1.ab, v0.ab);
+        //    /*cpVect*/
+        //    var n = cpvnormalize(cpvperp(delta));
+        //    var delta = new Vect(v1.ab.x - v0.ab.x, v1.ab.y - v0.ab.y);
+        var deltaY = v1.ab.x - v0.ab.x;
+        var deltaX = -v1.ab.y + v0.ab.y;
+        var f = cpfsqrt(deltaX * deltaX + deltaY * deltaY) + CPFLOAT_MIN;
+        var nx = deltaX / f;
+        var ny = deltaY / f;
+        //
+        ////    var n = cpvnormalize(new Vect(-deltaY, deltaX));
+        //    var n = new Vect(nx, ny);
         /*cpFloat*/
-        var d = -cpvdot(n, p);
+        //    var d = -cpvdot(n, p);
+        var d = -(nx * p.x + ny * p.y);
         if (d <= 0 || 0 < t && t < 1) {
-            n = cpvneg(n);
+            //        n = cpvneg(n);
+            var n = new Vect(-nx, -ny);
         } else {
             /*cpFloat*/
-            d = cpvlength(p);
+            //        d = cpvlength(p);
+            d = cpfsqrt(p.x * p.x + p.y * p.y);
             /*cpVect*/
-            n = cpvmult(p, 1 / (d + CPFLOAT_MIN));
+            //        n = cpvmult(p, 1.0 / (d + CPFLOAT_MIN));
+            var f = d + CPFLOAT_MIN;
+            var n = new Vect(p.x / f, p.y / f);
         }
         this.a = pa;
         this.b = pb;
@@ -3321,7 +3347,12 @@
             cpAssertSoft(!cpveql(v0.ab, v1.ab), "Internal Error: EPA vertexes are the same (" + mini + " and " + (mini + 1) % count + ")");
         }
         /*struct MinkowskiPoint*/
-        var p = Support(ctx, cpvperp(cpvsub(v1.ab, v0.ab)));
+        //    var p = Support(ctx, cpvperp(cpvsub(v1.ab, v0.ab)));
+        var v0abx = v0.ab.x;
+        var v0aby = v0.ab.y;
+        var v1abx = v1.ab.x;
+        var v1aby = v1.ab.y;
+        var p = Support(ctx, new Vect(v0aby - v1aby, v1abx - v0abx));
         //#if DRAW_EPA
         //	cpVect verts[count];
         //	for(int i=0; i<count; i++) verts[i] = hull[i].ab;
@@ -3332,7 +3363,9 @@
         //	ChipmunkDebugDrawPoints(5, 1, (cpVect[]){p.ab}, RGBAColor(1, 1, 1, 1));
         //#endif
         /*cpFloat*/
-        var area2x = cpvcross(cpvsub(v1.ab, v0.ab), cpvadd(cpvsub(p.ab, v0.ab), cpvsub(p.ab, v1.ab)));
+        //    var area2x = cpvcross(cpvsub(v1.ab, v0.ab), cpvadd(cpvsub(p.ab, v0.ab), cpvsub(p.ab, v1.ab)));
+        //    var area2x = ((v1.ab.x - v0.ab.x) * (2*p.ab.y - v0.ab.y - v1.ab.y) - (v1.ab.y - v0.ab.y) * (2*p.ab.x - v0.ab.x - v1.ab.x));
+        var area2x = 2 * (v1abx * (p.ab.y - v0aby) + v0abx * (v1aby - p.ab.y) + p.ab.x * (v0aby - v1aby));
         if (area2x > 0 && iteration < MAX_EPA_ITERATIONS) {
             /*int*/
             var count2 = 1;
@@ -3350,7 +3383,8 @@
                 /*cpVect*/
                 var h2 = (i + 1 < count ? hull[(index + 1) % count] : p).ab;
                 // TODO: Should this be changed to an area2x check?
-                if (cpvcross(cpvsub(h2, h0), cpvsub(h1, h0)) > 0) {
+                //            if (cpvcross(cpvsub(h2, h0), cpvsub(h1, h0)) > 0.0) {
+                if ((h2.x - h0.x) * (h1.y - h0.y) - (h2.y - h0.y) * (h1.x - h0.x) > 0) {
                     hull2[count2] = hull[index];
                     count2++;
                 }
@@ -3381,15 +3415,23 @@
             return new ClosestPoints(v0, v1);
         }
         /*cpVect*/
-        var delta = cpvsub(v1.ab, v0.ab);
-        if (cpvcross(delta, cpvadd(v0.ab, v1.ab)) > 0) {
+        //    var delta = cpvsub(v1.ab, v0.ab);
+        var v0abx = v0.ab.x;
+        var v0aby = v0.ab.y;
+        var v1abx = v1.ab.x;
+        var v1aby = v1.ab.y;
+        var deltaX = v1abx - v0abx;
+        var deltaY = v1aby - v0aby;
+        //    if (cpvcross(delta, cpvadd(v0.ab, v1.ab)) > 0.0) {
+        if (deltaX * (v0aby + v1aby) - deltaY * (v0abx + v1abx) > 0) {
             // Origin is behind axis. Flip and try again.
             return GJKRecurse(ctx, v1, v0, iteration + 1);
         } else {
             /*cpFloat*/
             var t = ClosestT(v0.ab, v1.ab);
             /*cpVect*/
-            var n = -1 < t && t < 1 ? cpvperp(delta) : cpvneg(LerpT(v0.ab, v1.ab, t));
+            //        var n = (-1.0 < t && t < 1.0 ? cpvperp(delta) : cpvneg(LerpT(v0.ab, v1.ab, t)));
+            var n = -1 < t && t < 1 ? new Vect(-deltaY, deltaX) : cpvneg(LerpT(v0.ab, v1.ab, t));
             /*struct MinkowskiPoint*/
             var p = Support(ctx, n);
             //#if DRAW_GJK
@@ -3399,7 +3441,11 @@
             //
             //		ChipmunkDebugDrawPoints(5.0, 1, &p.ab, RGBAColor(1, 1, 1, 1));
             //#endif
-            if (cpvcross(cpvsub(v1.ab, p.ab), cpvadd(v1.ab, p.ab)) > 0 && cpvcross(cpvsub(v0.ab, p.ab), cpvadd(v0.ab, p.ab)) < 0) {
+            var pabx = p.ab.x;
+            var paby = p.ab.y;
+            if (//            cpvcross(cpvsub(v1.ab, p.ab), cpvadd(v1.ab, p.ab)) > 0.0 &&
+            (v1abx - pabx) * (v1aby + paby) - (v1aby - paby) * (v1abx + pabx) > 0 && //                cpvcross(cpvsub(v0.ab, p.ab), cpvadd(v0.ab, p.ab)) < 0.0
+            (v0abx - pabx) * (v0aby + paby) - (v0aby - paby) * (v0abx + pabx) < 0) {
                 if (NDEBUG) {
                     cpAssertWarn(iteration < WARN_GJK_ITERATIONS, "High GJK.EPA iterations: " + iteration);
                 }
@@ -3407,7 +3453,10 @@
                 return EPA(ctx, v0, p, v1);
             } else {
                 // The new point must be farther along the normal than the existing points.
-                if (cpvdot(p.ab, n) <= cpfmax(cpvdot(v0.ab, n), cpvdot(v1.ab, n))) {
+                var nx = n.x;
+                var ny = n.y;
+                //            if (cpvdot(p.ab, n) <= cpfmax(cpvdot(v0.ab, n), cpvdot(v1.ab, n))) {
+                if (pabx * nx + paby * ny <= cpfmax(v0abx * nx + v0aby * ny, v1abx * nx + v1aby * ny)) {
                     if (NDEBUG) {
                         cpAssertWarn(iteration < WARN_GJK_ITERATIONS, "High GJK iterations: " + iteration);
                     }
@@ -3485,9 +3534,13 @@
             v1 = new MinkoskiPoint(ShapePoint(ctx.shape1, id >> 8 & 255), ShapePoint(ctx.shape2, id & 255));
         } else {
             /*cpVect*/
-            var axis = cpvperp(cpvsub(ctx.shape1.bb.center(), ctx.shape2.bb.center()));
-            v0 = Support(ctx, axis);
-            v1 = Support(ctx, cpvneg(axis));
+            //        var axis = cpvperp(cpvsub(ctx.shape1.bb.center(), ctx.shape2.bb.center()));
+            var bb1Center = ctx.shape1.bb.center();
+            var bb2Center = ctx.shape2.bb.center();
+            var axisY = bb1Center.x - bb2Center.x;
+            var axisX = -bb1Center.y + bb2Center.y;
+            v0 = Support(ctx, new Vect(axisX, axisY));
+            v1 = Support(ctx, new Vect(-axisX, -axisY));
         }
         /*struct ClosestPoints*/
         var points = GJKRecurse(ctx, v0, v1, 1);
@@ -3507,24 +3560,37 @@
     };
     //static inline int
     var Contact2 = function(/*cpVect*/ refp, /*cpVect*/ inca, /*cpVect*/ incb, /*cpFloat*/ refr, /*cpFloat*/ incr, /*cpVect*/ refn, /*cpVect*/ n, /*cpHashValue*/ hash, /*cpContact **/ arr) {
+        var incax = inca.x;
+        var incay = inca.y;
+        var incbx = incb.x;
+        var incby = incb.y;
+        var refnx = refn.x;
+        var refny = refn.y;
+        var refpx = refp.x;
+        var refpy = refp.y;
         /*cpFloat*/
-        var cian = cpvcross(inca, refn);
+        //    var cian = cpvcross(inca, refn);
+        var cian = incax * refny - incay * refnx;
         /*cpFloat*/
-        var cibn = cpvcross(incb, refn);
+        //    var cibn = cpvcross(incb, refn);
+        var cibn = incbx * refny - incby * refnx;
         /*cpFloat*/
-        var crpn = cpvcross(refp, refn);
+        //    var crpn = cpvcross(refp, refn);
+        var crpn = refpx * refny - refpy * refnx;
         /*cpFloat*/
         var t = 1 - cpfclamp01((cibn - crpn) / (cibn - cian));
         /*cpVect*/
         var point = cpvlerp(inca, incb, t);
         /*cpFloat*/
-        var pd = cpvdot(cpvsub(point, refp), refn);
+        //    var pd = cpvdot(cpvsub(point, refp), refn);
+        var pd = (point.x - refpx) * refnx + (point.y - refpy) * refny;
         if (t > 0 && pd <= 0) {
             /*cpFloat*/
             var rsum = refr + incr;
             /*cpFloat*/
             var alpha = rsum > 0 ? incr * (1 - (rsum + pd) / rsum) : -.5 * pd;
-            arr.push(new Contact(cpvadd(point, cpvmult(refn, alpha)), n, pd, hash));
+            //        arr.push(new Contact(cpvadd(point, cpvmult(refn, alpha)), n, pd, hash));
+            arr.push(new Contact(new Vect(point.x + refnx * alpha, point.y + refny * alpha), n, pd, hash));
             return 1;
         } else {
             return 0;
@@ -3533,23 +3599,48 @@
     //static inline int
     var ClipContacts = function(/*const struct Edge*/ ref, /*const struct Edge*/ inc, /*const struct ClosestPoints*/ points, /*const cpFloat*/ nflip, /*cpContact **/ arr) {
         /*cpVect*/
-        var inc_offs = cpvmult(inc.n, inc.r);
+        //    var inc_offs = cpvmult(inc.n, inc.r);
+        //    var inc_offs = new Vect(inc.n.x * inc.r, inc.n.y * inc.r);
+        var incr = inc.r;
+        var inc_offsX = inc.n.x * incr;
+        var inc_offsY = inc.n.y * incr;
         /*cpVect*/
-        var ref_offs = cpvmult(ref.n, ref.r);
+        //    var ref_offs = cpvmult(ref.n, ref.r);
+        //    var ref_offs = new Vect(ref.n.x * ref.r, ref.n.y * ref.r);
+        var refn = ref.n;
+        var refr = ref.r;
+        var ref_offsX = refn.x * refr;
+        var ref_offsY = refn.y * refr;
         /*cpVect*/
-        var inca = cpvadd(inc.a.p, inc_offs);
+        //    var inca = cpvadd(inc.a.p, inc_offs);
+        var incap = inc.a.p;
+        var inca = new Vect(incap.x + inc_offsX, incap.y + inc_offsY);
         /*cpVect*/
-        var incb = cpvadd(inc.b.p, inc_offs);
+        //    var incb = cpvadd(inc.b.p, inc_offs);
+        var incbp = inc.b.p;
+        var incb = new Vect(incbp.x + inc_offsX, incbp.y + inc_offsY);
         /*cpVect*/
-        var closest_inca = cpClosetPointOnSegment(inc.a.p, ref.a.p, ref.b.p);
+        var refap = ref.a.p;
+        var refbp = ref.b.p;
+        var closest_inca = cpClosetPointOnSegment(incap, refap, refbp);
         /*cpVect*/
-        var closest_incb = cpClosetPointOnSegment(inc.b.p, ref.a.p, ref.b.p);
+        var closest_incb = cpClosetPointOnSegment(incbp, refap, refbp);
         /*cpVect*/
-        var msa = cpvmult(points.n, nflip * points.d);
+        var pointsn = points.n;
+        var f = nflip * points.d;
+        //    var msa = new Vect(pointsn.x * f, pointsn.y * f);
+        var msax = pointsn.x * f;
+        var msay = pointsn.y * f;
         /*cpFloat*/
-        var cost_a = cpvdistsq(cpvsub(inc.a.p, closest_inca), msa);
+        //    var cost_a = cpvdistsq(cpvsub(incap, closest_inca), msa);
+        var cost_ax = incap.x - closest_inca.x - msax;
+        var cost_ay = incap.y - closest_inca.y - msay;
+        var cost_a = cost_ax * cost_ax + cost_ay * cost_ay;
         /*cpFloat*/
-        var cost_b = cpvdistsq(cpvsub(inc.b.p, closest_incb), msa);
+        //    var cost_b = cpvdistsq(cpvsub(incbp, closest_incb), msa);
+        var cost_bx = incbp.x - closest_incb.x - msax;
+        var cost_by = incbp.y - closest_incb.y - msay;
+        var cost_b = cost_bx * cost_bx + cost_by * cost_by;
         //#if DRAW_CLIP
         //	ChipmunkDebugDrawSegment(ref.a.p, ref.b.p, RGBAColor(1, 0, 0, 1));
         //	ChipmunkDebugDrawSegment(inc.a.p, inc.b.p, RGBAColor(0, 1, 0, 1));
@@ -3576,14 +3667,16 @@
         var hash_ibra = CP_HASH_PAIR(inc.b.hash, ref.a.hash);
         if (cost_a < cost_b) {
             /*cpVect*/
-            var refp = cpvadd(ref.a.p, ref_offs);
-            Contact1(points.d, closest_inca, inc.a.p, ref.r, inc.r, points.n, hash_iarb, arr);
-            return Contact2(refp, inca, incb, ref.r, inc.r, ref.n, points.n, hash_ibra, arr) + 1;
+            //        var refp = cpvadd(ref.a.p, ref_offs);
+            var refp = new Vect(refap.x + ref_offsX, refap.y + ref_offsY);
+            Contact1(points.d, closest_inca, incap, refr, incr, pointsn, hash_iarb, arr);
+            return Contact2(refp, inca, incb, refr, incr, refn, pointsn, hash_ibra, arr) + 1;
         } else {
             /*cpVect*/
-            var refp = cpvadd(ref.b.p, ref_offs);
-            Contact1(points.d, closest_incb, inc.b.p, ref.r, inc.r, points.n, hash_ibra, arr);
-            return Contact2(refp, incb, inca, ref.r, inc.r, ref.n, points.n, hash_iarb, arr) + 1;
+            //        var refp = cpvadd(ref.b.p, ref_offs);
+            var refp = new Vect(refbp.x + ref_offsX, refbp.y + ref_offsY);
+            Contact1(points.d, closest_incb, incbp, refr, incr, pointsn, hash_ibra, arr);
+            return Contact2(refp, incb, inca, refr, incr, refn, pointsn, hash_iarb, arr) + 1;
         }
     };
     //static inline int
@@ -3610,10 +3703,15 @@
     // Collide circle shapes.
     //static int
     var CircleToCircle = function(/*const cpCircleShape **/ c1, /*const cpCircleShape **/ c2, /*cpCollisionID **/ idRef, /*cpContact **/ arr) {
-        return CircleToCircleQuery(c1.tc, c2.tc, c1.r, c2.r, 0, arr);
+        var con = CircleToCircleQuery(c1.tc, c2.tc, c1.r, c2.r, 0);
+        if (con) {
+            arr.push(con);
+            return 1;
+        }
+        return 0;
     };
     //static int
-    var CircleToSegment = function(/*const cpCircleShape **/ circleShape, /*const cpSegmentShape **/ segmentShape, /*cpCollisionID **/ idRef, /*cpContact **/ con) {
+    var CircleToSegment = function(/*const cpCircleShape **/ circleShape, /*const cpSegmentShape **/ segmentShape, /*cpCollisionID **/ idRef, /*cpContact **/ arr) {
         /*cpVect*/
         var seg_a = segmentShape.ta;
         /*cpVect*/
@@ -3621,16 +3719,22 @@
         /*cpVect*/
         var center = circleShape.tc;
         /*cpVect*/
-        var seg_delta = cpvsub(seg_b, seg_a);
+        //    var seg_delta = cpvsub(seg_b, seg_a);
+        var seg_deltax = seg_b.x - seg_a.x;
+        var seg_deltay = seg_b.y - seg_a.y;
         /*cpFloat*/
-        var closest_t = cpfclamp01(cpvdot(seg_delta, cpvsub(center, seg_a)) / cpvlengthsq(seg_delta));
+        //    var closest_t = cpfclamp01(cpvdot(seg_delta, cpvsub(center, seg_a)) / cpvlengthsq(seg_delta));
+        var closest_t = cpfclamp01((seg_deltax * (center.x - seg_a.x) + seg_deltay * (center.y - seg_a.y)) / (seg_deltax * seg_deltax + seg_deltay * seg_deltay));
         /*cpVect*/
-        var closest = cpvadd(seg_a, cpvmult(seg_delta, closest_t));
-        if (CircleToCircleQuery(center, closest, circleShape.r, segmentShape.r, 0, con)) {
+        //    var closest = cpvadd(seg_a, cpvmult(seg_delta, closest_t));
+        var closest = new Vect(seg_a.x + seg_deltax * closest_t, seg_a.y + seg_deltay * closest_t);
+        var con;
+        if (con = CircleToCircleQuery(center, closest, circleShape.r, segmentShape.r, 0)) {
             /*cpVect*/
-            var n = con[0].n;
+            var n = con.n;
             // Reject endcap collisions if tangents are provided.
-            if ((closest_t != 0 || cpvdot(n, cpvrotate(segmentShape.a_tangent, segmentShape.body.rot)) >= 0) && (closest_t != 1 || cpvdot(n, cpvrotate(segmentShape.b_tangent, segmentShape.body.rot)) >= 0)) {
+            if ((closest_t != 0 || segmentShape.a_tangent.x == 0 && segmentShape.a_tangent.y == 0 || cpvdot(n, cpvrotate(segmentShape.a_tangent, segmentShape.body.rot)) >= 0) && (closest_t != 1 || segmentShape.b_tangent.x == 0 && segmentShape.b_tangent.y == 0 || cpvdot(n, cpvrotate(segmentShape.b_tangent, segmentShape.body.rot)) >= 0)) {
+                arr.push(con);
                 return 1;
             }
         }
@@ -3680,9 +3784,7 @@
         //	ChipmunkDebugDrawSegment(points.a, points.b, RGBAColor(1, 1, 1, 1));
         //	ChipmunkDebugDrawSegment(points.a, cpvadd(points.a, cpvmult(points.n, 10.0)), RGBAColor(1, 0, 0, 1));
         //#endif
-        //	console.log(points)
-        //    throw new Error('xxxx')
-        if (points.d - poly1.r - poly2.r <= 0) {
+        if (points.d <= 0 || points.d - poly1.r - poly2.r <= 0) {
             return ContactPoints(SupportEdgeForPoly(poly1, points.n), SupportEdgeForPoly(poly2, cpvneg(points.n)), points, arr);
         } else {
             return 0;
@@ -3709,7 +3811,7 @@
         var n = points.n;
         /*cpVect*/
         var rot = seg.body.rot;
-        if (points.d - seg.r - poly.r <= 0 && (!cpveql(points.a, seg.ta) || cpvdot(n, cpvrotate(seg.a_tangent, rot)) <= 0) && (!cpveql(points.a, seg.tb) || cpvdot(n, cpvrotate(seg.b_tangent, rot)) <= 0)) {
+        if (points.d - seg.r - poly.r <= 0 && (seg.a_tangent.x == 0 && seg.a_tangent.y == 0 || !cpveql(points.a, seg.ta) || cpvdot(n, cpvrotate(seg.a_tangent, rot)) <= 0) && (seg.b_tangent.x == 0 && seg.b_tangent.y == 0 || !cpveql(points.a, seg.tb) || cpvdot(n, cpvrotate(seg.b_tangent, rot)) <= 0)) {
             return ContactPoints(SupportEdgeForSegment(seg, n), SupportEdgeForPoly(poly, cpvneg(n)), points, arr);
         } else {
             return 0;
@@ -4773,6 +4875,9 @@
     };
     //static inline cpBody *
     var ComponentRoot = function(/*cpBody*/ body) {
+        if (!body) {
+            console.log(222);
+        }
         return body ? body.nodeRoot : null;
     };
     //static inline void
@@ -5324,7 +5429,7 @@
         if (sensor && handler == cpDefaultCollisionHandler) return id;
         // Shape 'a' should have the lower shape type. (required by cpCollideShapes() )
         // TODO remove me: a < b comparison is for debugging collisions
-        if (a.type > b.type || a.type == b.type && a < b) {
+        if (a.type > b.type) {
             /*cpShape*/
             var temp = a;
             a = b;
@@ -5522,7 +5627,7 @@
     /// Returns true if the body is sleeping.
     //cpBool
     Body.prototype.isSleeping = function() {
-        return this.nodeRoot != null;
+        return !!this.nodeRoot;
     };
     /// Returns true if the body is static.
     //cpBool
@@ -5533,7 +5638,7 @@
     /// Note: Static bodies are a subtype of rogue bodies.
     //cpBool
     Body.prototype.isRogue = function() {
-        return this.space == null;
+        return !this.space;
     };
     /// Convert body relative/local coordinates to absolute/world coordinates.
     //cpVect
