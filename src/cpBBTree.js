@@ -207,7 +207,7 @@ BBTree.prototype.pairFromPool = function(a, nextA, b, nextB, id)
 }
 
 //static inline void
-ThreadUnlink = function(prev, leaf, next)
+var ThreadUnlink = function(prev, leaf, next)
 {
 	if(next){
 		if(next.aLeaf == leaf) next.aPrev = prev; else next.bPrev = prev;

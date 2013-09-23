@@ -1,3 +1,5 @@
+"use strict";
+
 var CP_VERSION_MAJOR = 6
 var CP_VERSION_MINOR = 2
 var CP_VERSION_RELEASE = 0

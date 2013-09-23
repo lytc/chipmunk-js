@@ -26,6 +26,7 @@
  */
 (function(exports, global) {
     global["cp"] = exports;
+    "use strict";
     var CP_VERSION_MAJOR = 6;
     var CP_VERSION_MINOR = 2;
     var CP_VERSION_RELEASE = 0;
@@ -1340,22 +1341,17 @@
         con.p = p;
         con.n = n;
         con.dist = dist;
-        //    con.jnAcc = 0.0;
-        //    con.jtAcc = 0.0;
-        //    con.jBias = 0.0;
         con.hash = hash;
         con.r1 = new Vect(0, 0);
         con.r2 = new Vect(0, 0);
     };
-    Contact.prototype = {
-        jnAcc: 0,
-        jtAcc: 0,
-        jBias: 0,
-        nMass: 0,
-        tMass: 0,
-        bounce: 0,
-        bias: 0
-    };
+    Contact.prototype.jnAcc = 0;
+    Contact.prototype.jtAcc = 0;
+    Contact.prototype.jBias = 0;
+    Contact.prototype.nMass = 0;
+    Contact.prototype.tMass = 0;
+    Contact.prototype.bounce = 0;
+    Contact.prototype.bias = 0;
     // TODO make this generic so I can reuse it for constraints also.
     //static inline void
     var unthreadHelper = function(/*cpArbiter*/ arb, /*cpBody*/ body) {
@@ -1384,7 +1380,7 @@
     //cpArbiter*
     var Arbiter = cp.Arbiter = function(/*cpShape*/ a, /*cpShape*/ b) {
         var arb = this;
-        arb.surface_vr = cpv(0, 0);
+        arb.surface_vr = new Vect(0, 0);
         arb.a = a;
         arb.body_a = a.body;
         arb.b = b;
@@ -1392,15 +1388,13 @@
         contacts: null, arb.thread_a = new arbiterThread(null, null);
         arb.thread_b = new arbiterThread(null, null);
     };
-    Arbiter.prototype = {
-        handler: null,
-        swappedColl: false,
-        e: 0,
-        u: 0,
-        stamp: 0,
-        state: cpArbiterStateFirstColl,
-        data: null
-    };
+    Arbiter.prototype.handler = null;
+    Arbiter.prototype.swappedColl = false;
+    Arbiter.prototype.e = 0;
+    Arbiter.prototype.u = 0;
+    Arbiter.prototype.stamp = 0;
+    Arbiter.prototype.state = cpArbiterStateFirstColl;
+    Arbiter.prototype.data = null;
     Arbiter.prototype.reset = function(/*cpShape*/ a, /*cpShape*/ b) {
         var arb = this;
         arb.handler = null;
@@ -1686,6 +1680,7 @@
     //	}
     //}
     Arbiter.prototype.applyImpulse = function() {
+        this._caches || (this._caches = {});
         var arb = this;
         /*cpBody*/
         var a = arb.body_a;
@@ -1706,6 +1701,10 @@
             var r1 = con.r1;
             /*cpVect*/
             var r2 = con.r2;
+            var key = [ n.x, n.y, r1, r2, nMass ].join("-");
+            if (this._caches[key]) {} else {
+                this._caches[key] = 1;
+            }
             //		/*cpVect*/ var vb1 = cpvadd(a.v_bias, cpvmult(cpvperp(r1), a.w_bias));
             //      /*cpVect*/ var vb2 = cpvadd(b.v_bias, cpvmult(cpvperp(r2), b.w_bias));
             //        /*cpVect*/ var vr = cpvadd(relative_velocity(a, b, r1, r2), surface_vr);
@@ -2180,7 +2179,7 @@
         }
     };
     //static inline void
-    ThreadUnlink = function(prev, leaf, next) {
+    var ThreadUnlink = function(prev, leaf, next) {
         if (next) {
             if (next.aLeaf == leaf) next.aPrev = prev; else next.bPrev = prev;
         }

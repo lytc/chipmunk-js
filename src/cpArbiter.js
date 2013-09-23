@@ -5,29 +5,19 @@ var Contact = function (/*cpVect*/ p, /*cpVect*/ n, /*cpFloat*/ dist, /*cpHashVa
     con.n = n;
     con.dist = dist;
 
-//    con.jnAcc = 0.0;
-//    con.jtAcc = 0.0;
-//    con.jBias = 0.0;
-
     con.hash = hash;
 
     con.r1 = new Vect(0, 0)
     con.r2 = new Vect(0, 0)
-//    con.nMass = 0.0;
-//    con.tMass = 0.0;
-//    con.bounce = 0.0;
-//    con.bias = 0.0;
 }
 
-Contact.prototype = {
-    jnAcc: 0,
-    jtAcc: 0,
-    jBias: 0,
-    nMass: 0,
-    tMass: 0,
-    bounce: 0,
-    bias: 0
-}
+Contact.prototype.jnAcc = 0;
+Contact.prototype.jtAcc = 0;
+Contact.prototype.jBias = 0;
+Contact.prototype.nMass = 0;
+Contact.prototype.tMass = 0;
+Contact.prototype.bounce = 0;
+Contact.prototype.bias = 0;
 
 // TODO make this generic so I can reuse it for constraints also.
 //static inline void
