@@ -1350,11 +1350,11 @@
     };
     Contact.prototype.jnAcc = 0;
     Contact.prototype.jtAcc = 0;
-    Contact.prototype.jBias = 0;
-    Contact.prototype.nMass = 0;
-    Contact.prototype.tMass = 0;
-    Contact.prototype.bounce = 0;
-    Contact.prototype.bias = 0;
+    //Contact.prototype.jBias = 0;
+    //Contact.prototype.nMass = 0;
+    //Contact.prototype.tMass = 0;
+    //Contact.prototype.bounce = 0;
+    //Contact.prototype.bias = 0;
     // TODO make this generic so I can reuse it for constraints also.
     //static inline void
     var unthreadHelper = function(/*cpArbiter*/ arb, /*cpBody*/ body) {
@@ -2103,13 +2103,15 @@
             var x = (bb.r - bb.l) * coef;
             /*cpFloat*/
             var y = (bb.t - bb.b) * coef;
-            /*cpVect*/
-            var v = cpvmult(velocityFunc(obj), .1);
+            //		/*cpVect*/ var v = cpvmult(velocityFunc(obj), 0.1);
+            var v = velocityFunc(obj);
+            var vx = v.x * .1;
+            var vy = v.y * .1;
             //		return new BB(bb.l + cpfmin(-x, v.x), bb.b + cpfmin(-y, v.y), bb.r + cpfmax(x, v.x), bb.t + cpfmax(y, v.y));
-            targetBB.l = bb.l + cpfmin(-x, v.x);
-            targetBB.b = bb.b + cpfmin(-y, v.y);
-            targetBB.r = bb.r + cpfmax(x, v.x);
-            targetBB.t = bb.t + cpfmax(y, v.y);
+            targetBB.l = bb.l + cpfmin(-x, vx);
+            targetBB.b = bb.b + cpfmin(-y, vy);
+            targetBB.r = bb.r + cpfmax(x, vx);
+            targetBB.t = bb.t + cpfmax(y, vy);
         } else {
             targetBB.l = bb.l;
             targetBB.b = bb.b;
@@ -4782,23 +4784,27 @@
         for (var shape = body.shapeList; shape; shape = shape.next) space.reindexShape(shape);
     };
     //static void
-    var copyShapes = function(/*cpShape*/ shape, /*cpSpatialIndex*/ index) {
-        index.insert(shape, shape.hashid);
-    };
-    //void
-    Space.prototype.useSpatialHash = function(/*cpFloat*/ dim, /*int*/ count) {
-        var space = this;
-        /*cpSpatialIndex*/
-        var staticShapes = new cpSpaceHash(dim, count, /*cpSpatialIndexBBFunc*/ cpShapeGetBB, null);
-        /*cpSpatialIndex*/
-        var activeShapes = new cpSpaceHash(dim, count, /*cpSpatialIndexBBFunc*/ cpShapeGetBB, staticShapes);
-        space.staticShapes.each(/*cpSpatialIndexIteratorFunc*/ copyShapes, staticShapes);
-        space.activeShapes.each(/*cpSpatialIndexIteratorFunc*/ copyShapes, activeShapes);
-        //    space.staticShapes.free();
-        //    space.activeShapes.free();
-        space.staticShapes = staticShapes;
-        space.activeShapes = activeShapes;
-    };
+    //var copyShapes = function (/*cpShape*/ shape, /*cpSpatialIndex*/ index) {
+    //    index.insert(shape, shape.hashid);
+    //}
+    //
+    ////void
+    //Space.prototype.useSpatialHash = function (/*cpFloat*/ dim, /*int*/ count) {
+    //    var space = this;
+    //    /*cpSpatialIndex*/
+    //    var staticShapes = new cpSpaceHash(dim, count, /*cpSpatialIndexBBFunc*/cpShapeGetBB, null);
+    //    /*cpSpatialIndex*/
+    //    var activeShapes = new cpSpaceHash(dim, count, /*cpSpatialIndexBBFunc*/cpShapeGetBB, staticShapes);
+    //
+    //    space.staticShapes.each(/*cpSpatialIndexIteratorFunc*/copyShapes, staticShapes);
+    //    space.activeShapes.each(/*cpSpatialIndexIteratorFunc*/copyShapes, activeShapes);
+    //
+    ////    space.staticShapes.free();
+    ////    space.activeShapes.free();
+    //
+    //    space.staticShapes = staticShapes;
+    //    space.activeShapes = activeShapes;
+    //}
     //MARK: Sleeping Functions
     //void
     Space.prototype.activateBody = function(/*cpBody*/ body) {
@@ -4875,9 +4881,6 @@
     };
     //static inline cpBody *
     var ComponentRoot = function(/*cpBody*/ body) {
-        if (!body) {
-            console.log(222);
-        }
         return body ? body.nodeRoot : null;
     };
     //static inline void
@@ -5774,7 +5777,13 @@
     //static inline struct cpArbiterThread *
     Arbiter.prototype.threadForBody = function(/*cpBody*/ body) {
         var arb = this;
-        return arb.body_a == body ? arb.thread_a : arb.thread_b;
+        if (arb.body_a == body) {
+            return arb.thread_a;
+        }
+        if (arb.body_b != body) {
+            console.log(111);
+        }
+        return arb.thread_b;
     };
     /// @private
     //void

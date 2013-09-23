@@ -115,12 +115,16 @@ BBTree.prototype.getBB = function(/*void **/obj, targetBB)
 		/*cpFloat*/ var x = (bb.r - bb.l)*coef;
 		/*cpFloat*/ var y = (bb.t - bb.b)*coef;
 		
-		/*cpVect*/ var v = cpvmult(velocityFunc(obj), 0.1);
+//		/*cpVect*/ var v = cpvmult(velocityFunc(obj), 0.1);
+		var v = velocityFunc(obj);
+        var vx = v.x * 0.1;
+        var vy = v.y * 0.1;
+
 //		return new BB(bb.l + cpfmin(-x, v.x), bb.b + cpfmin(-y, v.y), bb.r + cpfmax(x, v.x), bb.t + cpfmax(y, v.y));
-        targetBB.l = bb.l + cpfmin(-x, v.x)
-        targetBB.b = bb.b + cpfmin(-y, v.y)
-        targetBB.r = bb.r + cpfmax(x, v.x)
-        targetBB.t = bb.t + cpfmax(y, v.y)
+        targetBB.l = bb.l + cpfmin(-x, vx)
+        targetBB.b = bb.b + cpfmin(-y, vy)
+        targetBB.r = bb.r + cpfmax(x, vx)
+        targetBB.t = bb.t + cpfmax(y, vy)
 	} else {
         targetBB.l = bb.l;
         targetBB.b = bb.b;

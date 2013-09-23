@@ -45,6 +45,7 @@
 
     var Base = function() {
         this.space = new cp.Space()
+        window.space = this.space
     }
 
     Base.prototype = {
@@ -73,9 +74,8 @@
                 child = overrides.constructor !== Object.prototype.constructor? overrides.constructor : function() {
                     Base.apply(this, arguments)
                 }
-
-                delete overrides.constructor
             }
+            delete overrides.constructor
 
             // extend static
             var parent = Base;
@@ -260,7 +260,7 @@
                 case cp.CIRCLE_SHAPE: {
                     /*cpCircleShape*/ var circle = /*cpCircleShape*/shape;
                     circle.draw? circle.draw() : Demo.renderer.drawCircle(circle.tc, body.a, circle.r, outline_color, fill_color);
-//                    Demo.renderer.drawBB(circle.bb, outline_color)
+                    Demo.renderer.drawBB(circle.bb, outline_color)
                     break;
                 }
                 case cp.SEGMENT_SHAPE: {
