@@ -13,11 +13,11 @@ var Contact = function (/*cpVect*/ p, /*cpVect*/ n, /*cpFloat*/ dist, /*cpHashVa
 
 Contact.prototype.jnAcc = 0;
 Contact.prototype.jtAcc = 0;
-Contact.prototype.jBias = 0;
-Contact.prototype.nMass = 0;
-Contact.prototype.tMass = 0;
-Contact.prototype.bounce = 0;
-Contact.prototype.bias = 0;
+//Contact.prototype.jBias = 0;
+//Contact.prototype.nMass = 0;
+//Contact.prototype.tMass = 0;
+//Contact.prototype.bounce = 0;
+//Contact.prototype.bias = 0;
 
 // TODO make this generic so I can reuse it for constraints also.
 //static inline void

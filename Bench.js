@@ -76,7 +76,7 @@ var add_box = function(/*cpSpace*/ space, /*int*/ index, /*cpFloat*/ size) {
 	
 	
 	/*cpShape*/ var shape = space.addShape(new BoxShape(body, size - bevel*2, size - bevel*2));
-	shape.setRadius(bevel);
+	shape.r = bevel;
 	shape.e = 0.0; shape.u = 0.9;
 }
 
@@ -535,6 +535,10 @@ var BENCH = function(n) {
         sample[i] = end;
         console.log('Run ' + (i + 1) + ': ' + end);
     }
+
+    console.log(cp._count1, '-', cp._count2)
+    cp._count1 = 0;
+    cp._count2 = 0;
 
     console.log(n + ': ' + (sample[3] + sample[4] + sample[5]) / 3);
 //    console.log(n + ': ' + sample[0]);

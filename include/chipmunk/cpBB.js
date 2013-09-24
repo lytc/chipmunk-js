@@ -16,14 +16,16 @@ var BBNewForCircle = BB.newForCircle = function (/*const cpVect*/ p, /*const cpF
 //cpBool
 BB.prototype.intersects = function (/*const cpBB*/ b) {
     var a = this;
-    return (a.l <= b.r && b.l <= a.r && a.b <= b.t && b.b <= a.t);
+//    return (a.l <= b.r && b.l <= a.r && a.b <= b.t && b.b <= a.t);
+    return !(b.l > a.r || b.r < a.l || b.t < a.b || b.b > a.t);
 }
 
 /// Returns true if @c other lies completely within @c bb.
 //cpBool
 BB.prototype.containsBB = function (/*const cpBB*/ other) {
     var bb = this;
-    return (bb.l <= other.l && bb.r >= other.r && bb.b <= other.b && bb.t >= other.t);
+//    return (bb.l <= other.l && bb.r >= other.r && bb.b <= other.b && bb.t >= other.t);
+    return !(bb.l > other.l || bb.r < other.r || bb.b > other.b || bb.t < other.t);
 }
 
 /// Returns true if @c bb contains @c v.

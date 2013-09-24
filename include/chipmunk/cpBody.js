@@ -1,7 +1,7 @@
 /// Returns true if the body is sleeping.
 //cpBool
 Body.prototype.isSleeping = function () {
-    return this.nodeRoot != null;
+    return !!this.nodeRoot;
 }
 
 /// Returns true if the body is static.
@@ -14,7 +14,7 @@ Body.prototype.isStatic = function () {
 /// Note: Static bodies are a subtype of rogue bodies.
 //cpBool
 Body.prototype.isRogue = function () {
-    return this.space == null;
+    return !this.space;
 }
 
 /// Convert body relative/local coordinates to absolute/world coordinates.

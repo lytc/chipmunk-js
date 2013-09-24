@@ -1,6 +1,9 @@
+var cpBodyIDCounter = 0;
+
 //cpBody *
 var Body = cp.Body = function (/*cpFloat*/ m, /*cpFloat*/ i) {
     var body = this;
+    body.hashid = cpBodyIDCounter++;
 
     body.p = new Vect(0, 0);
     body.v = new Vect(0, 0);

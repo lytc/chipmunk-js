@@ -471,24 +471,24 @@ Space.prototype.reindexShapesForBody = function (/*cpBody*/ body) {
 
 
 //static void
-var copyShapes = function (/*cpShape*/ shape, /*cpSpatialIndex*/ index) {
-    index.insert(shape, shape.hashid);
-}
-
-//void
-Space.prototype.useSpatialHash = function (/*cpFloat*/ dim, /*int*/ count) {
-    var space = this;
-    /*cpSpatialIndex*/
-    var staticShapes = new cpSpaceHash(dim, count, /*cpSpatialIndexBBFunc*/cpShapeGetBB, null);
-    /*cpSpatialIndex*/
-    var activeShapes = new cpSpaceHash(dim, count, /*cpSpatialIndexBBFunc*/cpShapeGetBB, staticShapes);
-
-    space.staticShapes.each(/*cpSpatialIndexIteratorFunc*/copyShapes, staticShapes);
-    space.activeShapes.each(/*cpSpatialIndexIteratorFunc*/copyShapes, activeShapes);
-
-//    space.staticShapes.free();
-//    space.activeShapes.free();
-
-    space.staticShapes = staticShapes;
-    space.activeShapes = activeShapes;
-}
+//var copyShapes = function (/*cpShape*/ shape, /*cpSpatialIndex*/ index) {
+//    index.insert(shape, shape.hashid);
+//}
+//
+////void
+//Space.prototype.useSpatialHash = function (/*cpFloat*/ dim, /*int*/ count) {
+//    var space = this;
+//    /*cpSpatialIndex*/
+//    var staticShapes = new cpSpaceHash(dim, count, /*cpSpatialIndexBBFunc*/cpShapeGetBB, null);
+//    /*cpSpatialIndex*/
+//    var activeShapes = new cpSpaceHash(dim, count, /*cpSpatialIndexBBFunc*/cpShapeGetBB, staticShapes);
+//
+//    space.staticShapes.each(/*cpSpatialIndexIteratorFunc*/copyShapes, staticShapes);
+//    space.activeShapes.each(/*cpSpatialIndexIteratorFunc*/copyShapes, activeShapes);
+//
+////    space.staticShapes.free();
+////    space.activeShapes.free();
+//
+//    space.staticShapes = staticShapes;
+//    space.activeShapes = activeShapes;
+//}
