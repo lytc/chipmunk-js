@@ -20,15 +20,21 @@ PolyShape.prototype.transformVerts = function (/*cpVect*/ p, /*cpVect*/ rot) {
     /*cpFloat*/
     var b = Infinity, t = -Infinity;
 
+    var px = p.x;
+    var py = p.y;
+    var rotx = rot.x;
+    var roty = rot.y;
+    
     for (var i = 0; i < src.length; i++) {
         /*cpVect*/
-        var v = cpvadd(p, cpvrotate(src[i], rot));
-
-        dst[i] = v;
-        l = cpfmin(l, v.x);
-        r = cpfmax(r, v.x);
-        b = cpfmin(b, v.y);
-        t = cpfmax(t, v.y);
+//        var v = cpvadd(p, cpvrotate(src[i], rot));
+        var vx = px + src[i].x * rotx - src[i].y * roty;
+        var vy = py + src[i].x * roty + src[i].y * rotx;
+        dst[i] = new Vect(vx, vy);
+        l = cpfmin(l, vx);
+        r = cpfmax(r, vx);
+        b = cpfmin(b, vy);
+        t = cpfmax(t, vy);
     }
 
     /*cpFloat*/
@@ -49,11 +55,24 @@ PolyShape.prototype.transformAxes = function (/*cpVect*/ p, /*cpVect*/ rot) {
     /*cpSplittingPlane*/
     var dst = poly.tPlanes;
 
+    var rotx = rot.x;
+    var roty = rot.y;
+    var px = p.x;
+    var py = p.y;
+
     for (var i = 0; i < src.length; i++) {
         /*cpVect*/
-        var n = cpvrotate(src[i].n, rot);
-        dst[i].n = n;
-        dst[i].d = cpvdot(p, n) + src[i].d;
+//        var n = cpvrotate(src[i].n, rot);
+        var n = src[i].n;
+        var nx = n.x * rotx - n.y * roty;
+        var ny = n.x * roty + n.y * rotx;
+
+//        dst[i].n = n;
+        dst[i].n.x = nx;
+        dst[i].n.y = ny;
+
+//        dst[i].d = cpvdot(p, n) + src[i].d;
+        dst[i].d = (px * nx + py * ny) + src[i].d;
     }
 }
 

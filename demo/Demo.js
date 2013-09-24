@@ -260,7 +260,7 @@
                 case cp.CIRCLE_SHAPE: {
                     /*cpCircleShape*/ var circle = /*cpCircleShape*/shape;
                     circle.draw? circle.draw() : Demo.renderer.drawCircle(circle.tc, body.a, circle.r, outline_color, fill_color);
-                    Demo.renderer.drawBB(circle.bb, outline_color)
+//                    Demo.renderer.drawBB(circle.bb, outline_color)
                     break;
                 }
                 case cp.SEGMENT_SHAPE: {

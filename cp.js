@@ -2819,9 +2819,11 @@
     //	if(tree.root) NodeRender(tree.root, 0);
     //}
     //#endif
+    var cpBodyIDCounter = 0;
     //cpBody *
     var Body = cp.Body = function(/*cpFloat*/ m, /*cpFloat*/ i) {
         var body = this;
+        body.hashid = cpBodyIDCounter++;
         body.p = new Vect(0, 0);
         body.v = new Vect(0, 0);
         body.f = new Vect(0, 0);
@@ -4211,14 +4213,20 @@
         var l = Infinity, r = -Infinity;
         /*cpFloat*/
         var b = Infinity, t = -Infinity;
+        var px = p.x;
+        var py = p.y;
+        var rotx = rot.x;
+        var roty = rot.y;
         for (var i = 0; i < src.length; i++) {
             /*cpVect*/
-            var v = cpvadd(p, cpvrotate(src[i], rot));
-            dst[i] = v;
-            l = cpfmin(l, v.x);
-            r = cpfmax(r, v.x);
-            b = cpfmin(b, v.y);
-            t = cpfmax(t, v.y);
+            //        var v = cpvadd(p, cpvrotate(src[i], rot));
+            var vx = px + src[i].x * rotx - src[i].y * roty;
+            var vy = py + src[i].x * roty + src[i].y * rotx;
+            dst[i] = new Vect(vx, vy);
+            l = cpfmin(l, vx);
+            r = cpfmax(r, vx);
+            b = cpfmin(b, vy);
+            t = cpfmax(t, vy);
         }
         /*cpFloat*/
         var radius = poly.r;
@@ -4235,11 +4243,21 @@
         var src = poly.planes;
         /*cpSplittingPlane*/
         var dst = poly.tPlanes;
+        var rotx = rot.x;
+        var roty = rot.y;
+        var px = p.x;
+        var py = p.y;
         for (var i = 0; i < src.length; i++) {
             /*cpVect*/
-            var n = cpvrotate(src[i].n, rot);
-            dst[i].n = n;
-            dst[i].d = cpvdot(p, n) + src[i].d;
+            //        var n = cpvrotate(src[i].n, rot);
+            var n = src[i].n;
+            var nx = n.x * rotx - n.y * roty;
+            var ny = n.x * roty + n.y * rotx;
+            //        dst[i].n = n;
+            dst[i].n.x = nx;
+            dst[i].n.y = ny;
+            //        dst[i].d = cpvdot(p, n) + src[i].d;
+            dst[i].d = px * nx + py * ny + src[i].d;
         }
     };
     //static cpBB
@@ -5432,7 +5450,7 @@
         if (sensor && handler == cpDefaultCollisionHandler) return id;
         // Shape 'a' should have the lower shape type. (required by cpCollideShapes() )
         // TODO remove me: a < b comparison is for debugging collisions
-        if (a.type > b.type) {
+        if (a.type > b.type || a.type == b.type && a < b) {
             /*cpShape*/
             var temp = a;
             a = b;
@@ -5777,13 +5795,7 @@
     //static inline struct cpArbiterThread *
     Arbiter.prototype.threadForBody = function(/*cpBody*/ body) {
         var arb = this;
-        if (arb.body_a == body) {
-            return arb.thread_a;
-        }
-        if (arb.body_b != body) {
-            console.log(111);
-        }
-        return arb.thread_b;
+        return arb.body_a == body ? arb.thread_a : arb.thread_b;
     };
     /// @private
     //void
