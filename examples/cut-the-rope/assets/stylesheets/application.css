@@ -1,0 +1,41 @@
+body {
+  margin: 0;
+  background: url("../images/tilebg.jpg");
+  cursor: url("../images/cursor.png"), auto;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -o-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -ms-touch-action: none; }
+
+#gameContainer {
+  position: relative;
+  margin: 40px auto 0;
+  width: 1024px;
+  height: 730px;
+  padding: 0;
+  margin-top: 30px; }
+
+#game-border {
+  top: -11px;
+  left: -12px;
+  position: absolute;
+  background-image: url(../images/game_bg.png);
+  background-repeat: no-repeat;
+  width: 1047px;
+  height: 598px; }
+
+#gameArea {
+  margin: 0;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1024px;
+  height: 576px;
+  display: block; }
+
+#canvas {
+  position: relative;
+  background: url("../images/bgr_01_p1.jpg"); }
