@@ -10,19 +10,6 @@ var cpCollisionHandler = function (/*cpCollisionType*/ a, /*cpCollisionType*/ b,
     this.data = data;
 };
 
-var CP_MAX_CONTACTS_PER_ARBITER = 2
-
-/// @private
-// Arbiter is active and its the first collision.
-var cpArbiterStateFirstColl = 0
-// Arbiter is active and its not the first collision.
-var cpArbiterStateNormal = 1
-// Collision has been explicitly ignored.
-// Either by returning false from a begin collision handler or calling cpArbiterIgnore().
-var cpArbiterStateIgnore = 2
-// Collison is no longer active. A space will cache an arbiter for up to cpSpace.collisionPersistence more steps.
-var cpArbiterStateCached = 3
-
 /// Return the colliding shapes involved for this arbiter.
 /// The order of their cpSpace.collision_type values will match
 /// the order set when the collision handler was registered.
