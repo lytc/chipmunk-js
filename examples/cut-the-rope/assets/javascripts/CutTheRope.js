@@ -1,4 +1,7 @@
 (function() {
+    var GRABABLE_MASK_BIT = 1<<31
+    var NOT_GRABABLE_MASK = ~GRABABLE_MASK_BIT
+
     var v = cp.v
     var requestAnimationFrame = window.requestAnimationFrame
                                 || window.webkitRequestAnimationFrame
@@ -12,15 +15,28 @@
         'char_animations.png',
         'obj_candy_01.png',
         'obj_hook_01.png',
-        'cursor.png'
+        'cursor.png',
+        'obj_star_idle.png'
     ]
 
     var levels = [
         function() {
             this.ropes = []
             var rope = new CutTheRope.Rope(this, v(0, 250), 7)
-            rope.jointCandy(this.candy)
+//            rope.jointCandy(this.candy)
             this.ropes.push(rope)
+
+            // stars
+            this.starts = []
+            var star
+            star = new CutTheRope.Star(this, v(0, 30))
+            this.starts.push(star)
+
+            star = new CutTheRope.Star(this, v(0, -50))
+            this.starts.push(star)
+
+            star = new CutTheRope.Star(this, v(0, -130))
+            this.starts.push(star)
         }
     ]
 
@@ -29,22 +45,27 @@
         this.initializeSpace()
         this.initializeRenderer(canvas)
         this.initializeMouse()
+        this.initializeMouseTrace()
         this.initializeStats()
         this.initializePxLoader()
         this.initializeCharSupports()
         this.initializeCharacter()
         this.initializeCandy()
+        this.initCollisionStar()
     }
 
     CutTheRope.prototype = {
         width: 1024
         ,height: 576
         ,steps: 2
+        ,GRABABLE_MASK_BIT: GRABABLE_MASK_BIT
+        ,NOT_GRABABLE_MASK: NOT_GRABABLE_MASK
+        ,mouseDown: false
 
         ,initializeSpace: function() {
-            var space = this.space = new cp.Space()
+            var space = this.space = window.space = new cp.Space()
             space.setIterations(30)
-            space.gravity = v(0, -300)
+            space.gravity = v(0, -500)
             space.collisionSlop = .5
             space.sleepTimeThreshold = .5
             space.damping = .8
@@ -69,12 +90,29 @@
             }
 
             $(this.canvas).on({
-                mousemove: function(e) {
+                mousedown: function() {
+                    me.mouseDown = true
+                }
+
+                ,mouseup: function() {
+                    me.mouseDown = false
+                    me.mouseTrace.reset()
+                }
+
+                ,mousemove: function(e) {
                     var point = getMousePoint(e)
                     me.mouse.x = point.x
                     me.mouse.y = point.y
+
+                    if (me.mouseDown) {
+                        me.mouseTrace.add(point.x, point.y)
+                    }
                 }
             })
+        }
+
+        ,initializeMouseTrace: function() {
+            var mouseTrace = this.mouseTrace = new CutTheRope.MouseTrace(this)
         }
 
         ,initializeStats: function() {
@@ -136,6 +174,8 @@
                 for (var i = 0; i < me.steps; i++) {
                     space.step(dt)
                 }
+                me.mouseTrace.update(Date.now())
+                me.detectCutTheRope()
 
                 me.draw()
                 stats.update()
@@ -146,17 +186,62 @@
             step(0)
         }
 
+        ,detectCutTheRope: function() {
+            if (this.isCut) {
+                return
+            }
+
+            if (!this.mouseDown) {
+                return
+            }
+
+            var start = this.mouseTrace.items[0]
+            if (!start) {
+                return
+            }
+            start = start.v
+            var end = this.mouse
+
+            this.space.segmentQuery(start, end, cp.ALL_LAYERS, cp.NO_GROUP, this.cutTheRope.bind(this));
+        }
+
+        ,cutTheRope: function(shape, t, n, context) {
+            this.isCut = true
+            var space = this.space
+
+            space.addPostStepCallback(function() {
+                space.removeConstraint(shape.body.constraintList)
+            })
+        }
+
+        ,initCollisionStar: function() {
+            this.space.addCollisionHandler(0, 1, function(arb, space) {
+                var shapes = arb.getShapes()
+                var candy = shapes[0]
+                var star = shapes[1]
+                console.log(candy, star)
+            })
+        }
+
         ,draw: function() {
             this.charSupports.draw()
             this.character.draw()
             this.drawRopes()
             this.candy.draw()
+            this.drawStarts()
+            this.mouseTrace.draw()
         }
 
         ,drawRopes: function() {
             var rope
             for (var i = 0; i < this.ropes.length; i++) {
                 this.ropes[i].draw()
+            }
+        }
+
+        ,drawStarts: function() {
+            for (var i = 0; i < this.starts.length; i++) {
+                this.starts[i].draw()
             }
         }
     }

@@ -5445,12 +5445,13 @@
         if (queryReject(a, b)) return id;
         /*cpCollisionHandler*/
         var handler = space.lookupHandler(a.collision_type, b.collision_type);
+
         /*cpBool*/
         var sensor = a.sensor || b.sensor;
         if (sensor && handler == cpDefaultCollisionHandler) return id;
         // Shape 'a' should have the lower shape type. (required by cpCollideShapes() )
         // TODO remove me: a < b comparison is for debugging collisions
-        if (a.type > b.type || a.type == b.type && a < b) {
+        if (a.type > b.type) {
             /*cpShape*/
             var temp = a;
             a = b;
@@ -5486,6 +5487,7 @@
         //    var arb = space.cachedArbiters[arbHashID] = new Arbiter(a, b);
         arb.update(contacts, handler, a, b);
         // Call the begin function first if it's the first step
+
         if (arb.state == cpArbiterStateFirstColl && !handler.begin(arb, space, handler.data)) {
             arb.ignore();
         }

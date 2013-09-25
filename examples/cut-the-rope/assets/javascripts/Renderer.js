@@ -56,12 +56,14 @@
         }
 
         ,drawPolygon: function(verts, radius, color) {
+            var p, p0 = this.point2canvas(verts[0])
+
             var ctx = this.ctx
+            ctx.save()
             ctx.fillStyle = color
 
             ctx.beginPath()
 
-            var p, p0 = this.point2canvas(verts[0])
             ctx.moveTo(p0.x, p0.y)
             for (var i = 1; i < verts.length; i++) {
                 p = this.point2canvas(verts[i])
@@ -69,6 +71,22 @@
             }
             ctx.lineTo(p0.x, p0.y)
             ctx.fill()
+            ctx.restore()
+        }
+
+        ,drawLine: function(start, end, width, color) {
+            start = this.point2canvas(start)
+            end = this.point2canvas(end)
+
+            var ctx = this.ctx
+            ctx.save()
+            ctx.lineWidth = width
+            ctx.strokeStyle = color
+            ctx.beginPath()
+            ctx.moveTo(start.x, start.y)
+            ctx.lineTo(end.x, end.y)
+            ctx.stroke()
+            ctx.restore()
         }
     }
 })()

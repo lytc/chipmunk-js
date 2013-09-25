@@ -114,7 +114,6 @@ var queryReject = function (/*cpShape*/ a, /*cpShape*/ b) {
 var cpSpaceCollideShapes = function (/*cpShape*/ a, /*cpShape*/ b, /*cpCollisionID*/ id, /*cpSpace*/ space) {
     // Reject any of the simple cases
     if (queryReject(a, b)) return id;
-
     /*cpCollisionHandler*/
     var handler = space.lookupHandler(a.collision_type, b.collision_type);
 
@@ -125,7 +124,7 @@ var cpSpaceCollideShapes = function (/*cpShape*/ a, /*cpShape*/ b, /*cpCollision
     // Shape 'a' should have the lower shape type. (required by cpCollideShapes() )
     // TODO remove me: a < b comparison is for debugging collisions
 
-    if (a.type > b.type || (a.type == b.type && a < b)) {
+    if (a.type > b.type/* || (a.type == b.type && a < b)*/) {
         /*cpShape*/
         var temp = a;
         a = b;
