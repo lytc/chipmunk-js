@@ -26,6 +26,7 @@
  */
 (function(exports, global) {
     global["cp"] = exports;
+    var NDEBUG = true;
     "use strict";
     var CP_VERSION_MAJOR = 6;
     var CP_VERSION_MINOR = 2;
