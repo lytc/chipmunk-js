@@ -16,14 +16,16 @@
         'obj_candy_01.png',
         'obj_hook_01.png',
         'cursor.png',
-        'obj_star_idle.png'
+        'obj_star_idle.png',
+        'obj_star_disappear.png'
     ]
 
     var levels = [
+        // 0
         function() {
             this.ropes = []
             var rope = new CutTheRope.Rope(this, v(0, 250), 7)
-//            rope.jointCandy(this.candy)
+            rope.jointCandy(this.candy)
             this.ropes.push(rope)
 
             // stars
@@ -38,6 +40,37 @@
             star = new CutTheRope.Star(this, v(0, -130))
             this.starts.push(star)
         }
+        // 1
+        ,function() {
+            this.ropes = []
+            var rope = new CutTheRope.Rope(this, v(-130, 210), 7)
+            rope.jointCandy(this.candy)
+            this.ropes.push(rope)
+
+            var rope = new CutTheRope.Rope(this, v(0, 210), 12)
+            rope.jointCandy(this.candy)
+            this.ropes.push(rope)
+
+            var rope = new CutTheRope.Rope(this, v(130, 210), 20)
+            rope.jointCandy(this.candy)
+            this.ropes.push(rope)
+
+            // stars
+            this.starts = []
+            var star
+            star = new CutTheRope.Star(this, v(-130, 10))
+            this.starts.push(star)
+
+            star = new CutTheRope.Star(this, v(-130, -140))
+            this.starts.push(star)
+
+            star = new CutTheRope.Star(this, v(130, 10))
+            this.starts.push(star)
+
+            //
+            this.character.setPos(v(130, -this.height / 2 + 70))
+            this.charSupports.setPos(v(130, -this.height / 2 + 35))
+        }
     ]
 
     var CutTheRope = window.CutTheRope = function(canvas) {
@@ -51,24 +84,25 @@
         this.initializeCharSupports()
         this.initializeCharacter()
         this.initializeCandy()
-        this.initCollisionStar()
+        this.initCandyStarCollisionHandler()
+        this.initCandyCharacterCollisionHandler()
     }
 
     CutTheRope.prototype = {
         width: 1024
         ,height: 576
-        ,steps: 2
+        ,steps: 3
         ,GRABABLE_MASK_BIT: GRABABLE_MASK_BIT
         ,NOT_GRABABLE_MASK: NOT_GRABABLE_MASK
         ,mouseDown: false
 
         ,initializeSpace: function() {
             var space = this.space = window.space = new cp.Space()
-            space.setIterations(30)
-            space.gravity = v(0, -500)
+            space.setIterations(120)
+            space.gravity = v(0, -600)
             space.collisionSlop = .5
             space.sleepTimeThreshold = .5
-            space.damping = .8
+            space.damping = .9
         }
 
         ,initializeRenderer: function(canvas) {
@@ -150,6 +184,13 @@
 
         ,setLevel: function(level) {
             levels[level].call(this)
+            var damping = this.space.damping
+            space.damping = .1
+            // run few step to make everything stable
+            for (var i = 0; i < 200; i++) {
+                this.space.step(1/120)
+            }
+            space.damping = damping
         }
 
         ,run: function() {
@@ -171,6 +212,7 @@
                 renderer.clear()
 
                 var dt = 1/60/me.steps
+
                 for (var i = 0; i < me.steps; i++) {
                     space.step(dt)
                 }
@@ -187,10 +229,6 @@
         }
 
         ,detectCutTheRope: function() {
-            if (this.isCut) {
-                return
-            }
-
             if (!this.mouseDown) {
                 return
             }
@@ -202,24 +240,51 @@
             start = start.v
             var end = this.mouse
 
-            this.space.segmentQuery(start, end, cp.ALL_LAYERS, cp.NO_GROUP, this.cutTheRope.bind(this));
+            this.space.segmentQuery(start, end, 2, cp.NO_GROUP, this.cutTheRope.bind(this));
         }
 
         ,cutTheRope: function(shape, t, n, context) {
-            this.isCut = true
             var space = this.space
-
-            space.addPostStepCallback(function() {
-                space.removeConstraint(shape.body.constraintList)
-            })
+            shape.layers = 0
+            shape.instance.break(shape)
+//            space.addPostStepCallback(function() {
+//                space.removeConstraint(shape.body.constraintList)
+//            })
         }
 
-        ,initCollisionStar: function() {
+        ,initCandyStarCollisionHandler: function() {
+            var me = this
+            me.collidedStars = 0
             this.space.addCollisionHandler(0, 1, function(arb, space) {
                 var shapes = arb.getShapes()
                 var candy = shapes[0]
                 var star = shapes[1]
-                console.log(candy, star)
+                star.instance.destroy()
+                me.collidedStars++
+            })
+        }
+
+        ,initCandyCharacterCollisionHandler: function() {
+            var me = this
+            var space = this.space
+
+            space.addCollisionHandler(0, 2, function(arb, space) {
+                var shapes = arb.getShapes()
+                var candy = shapes[0]
+                var character = shapes[1]
+                character.instance.setState('readyToEat')
+
+                // break all ropes also
+                for (var i = 0; i < me.ropes.length; i++) {
+                    me.ropes[i].break()
+                }
+
+                //
+                candy.layers = 0
+//                space.addPostStepCallback(function() {
+//                    space.removeConstraint(candy.body.constraintList)
+//                })
+                candy.instance.destroy()
             })
         }
 

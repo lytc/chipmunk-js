@@ -25,7 +25,7 @@
             return cp.v(x - this.halfWidth, this.halfHeight - y)
         }
 
-        ,drawImage: function(img, pos, offset, width, height) {
+        ,drawImage: function(img, pos, offset, width, height, angle) {
             pos = this.point2canvas(pos)
             var x = pos.x
             var y = pos.y
@@ -44,6 +44,8 @@
                 offsetY = offset.y
             }
 
+            angle || (angle = 0)
+
             var halfWidth = width / 2
             var halfHeight = height / 2
 
@@ -51,6 +53,7 @@
             ctx.save()
             ctx.translate(x, y)
             ctx.translate(halfWidth, halfHeight)
+            ctx.rotate(angle)
             ctx.drawImage(img, offsetX, offsetY, width, height, 0, 0, -width, -height)
             ctx.restore()
         }

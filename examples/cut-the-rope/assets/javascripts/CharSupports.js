@@ -16,5 +16,8 @@
                 this.height
             )
         }
+        ,setPos: function(pos) {
+            this.pos = pos
+        }
     }
 })()
