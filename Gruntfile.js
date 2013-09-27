@@ -52,6 +52,10 @@ module.exports = function (grunt) {
     grunt.initConfig({
         concat: {
             all: {
+                dest: 'cp.js',
+                src: ['src/debug.js'].concat(files)
+            },
+            min: {
                 dest: 'cp.min.js',
                 src: files
             }
@@ -67,22 +71,22 @@ module.exports = function (grunt) {
                     preserveComments: 'all'
                 },
                 files: {
-                    'cp.js': 'cp.min.js'
+                    'cp.js': 'cp.js'
                 }
             },
 
             minify: {
                 options: {
                     banner: license,
+                    wrap: 'cp',
                     compress: {
                         global_defs: {
                             NDEBUG: false
                         }
-                    },
-                    preserveComments: 'some'
+                    }
                 },
                 files: {
-                    'cp.min.js': 'cp.js'
+                    'cp.min.js': 'cp.min.js'
                 }
             }
         }
