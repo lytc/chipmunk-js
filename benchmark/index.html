@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+</head>
+<body>
+    <h3>See the result in console!</h3>
+    <input id="debug" type="checkbox" value="1"> DEBUG (cp.js / cp.min.js)<br>
+    <input id="web-worker" type="checkbox" value="1"> Web worker<br>
+    <button id="run">Run</button>
+
+    <script>
+        var NDEBUG = true;
+    </script>
+    <!--<script src="../cp.js"></script>-->
+    <script src="mersenne.js"></script>
+    <!--<script src="Bench.js"></script>-->
+    <script>
+        var benchName = location.hash.substr(1)
+
+        document.getElementById('run').onclick = function() {
+            var debug = document.getElementById('debug').checked
+            var isWebWorker = document.getElementById('web-worker').checked
+
+            console.log('DEBUG: ' + debug)
+
+            if (isWebWorker) {
+                var worker = new Worker('Bench.js')
+                worker.onmessage = function (e) {
+                    console.log(e.data);
+                }
+                worker.postMessage({debug: debug, benchName: location.hash.substr(1)})
+            } else {
+                // load chipmunk
+                var script = document.createElement('script')
+                script.src = debug? '../cp.js' : '../cp.min.js'
+
+                script.onload = function() {
+                    // load benchmark
+                    var script = document.createElement('script')
+                    script.src = 'Bench.js'
+                    script.onload = function() {
+                        bench(benchName)
+                    }
+                    document.head.appendChild(script)
+                }
+                document.head.appendChild(script)
+            }
+        }
+
+    </script>
+</body>
+</html>
