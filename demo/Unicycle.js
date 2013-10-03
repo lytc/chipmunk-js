@@ -109,7 +109,7 @@
         /*cpFloat*/ var dt = space.getCurrentTimeStep();
 
         /*cpFloat*/ var target_x = Demo.mouse.x;
-        Demo.renderer.drawSegment(cp.v(target_x, -1000.0), cp.v(target_x, 1000.0), new Demo.Color(255, 0.0, 0.0, 1.0));
+        Demo.renderer.drawSegment(cp.v(target_x, -1000.0), cp.v(target_x, 1000.0), 'rgba(255, 0.0, 0.0, 1.0)');
 
         /*cpFloat*/ var max_v = 500.0;
         /*cpFloat*/ var target_v = cp.fclamp(cp.biasCoef(0.5, dt/1.2)*(target_x - balance_body.p.x)/dt, -max_v, max_v);

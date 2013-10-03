@@ -67,7 +67,7 @@
 
             /*cpVect*/ var start = QUERY_START;
             /*cpVect*/ var end = Demo.mouse;
-            Demo.renderer.drawSegment(start, end, new Demo.Color(0,255,0,1));
+            Demo.renderer.drawSegment(start, end, 'rgba(0,255,0,1)');
 
             this.messageString =(Demo.format("Query: Dist({0}) Point {1}, ", cp.v.dist(start, end).toFixed(2), cp.v.str(end)));
 
@@ -76,13 +76,13 @@
                 /*cpVect*/ var point = segInfo.hitPoint(start, end);
 
                 // Draw blue over the occluded part of the query
-                Demo.renderer.drawSegment(point, end, new Demo.Color(0,0,255,1));
+                Demo.renderer.drawSegment(point, end, 'rgba(0,0,255,1)');
 
                 // Draw a little red surface normal
-                Demo.renderer.drawSegment(point, cp.v.add(point, cp.v.mult(segInfo.n, 16)), new Demo.Color(255,0,0,1));
+                Demo.renderer.drawSegment(point, cp.v.add(point, cp.v.mult(segInfo.n, 16)), 'rgba(255,0,0,1)');
 
                 // Draw a little red dot on the hit point.
-                Demo.renderer.drawDot(3, point, new Demo.Color(255,0,0,1));
+                Demo.renderer.drawDot(3, point, 'rgba(255,0,0,1)');
 
 
                 this.messageString +=(Demo.format("Segment Query: Dist({0}) Normal {1}", segInfo.hitDist(start, end).toFixed(2), cp.v.str(segInfo.n)));
@@ -94,11 +94,11 @@
             var nearestInfo = space.nearestPointQueryNearest(Demo.mouse, 100.0, cp.ALL_LAYERS, cp.NO_GROUP);
             if(nearestInfo){
                 // Draw a grey line to the closest shape.
-                Demo.renderer.drawDot(3, Demo.mouse, new Demo.Color(127, 127, 127, 1.0));
-                Demo.renderer.drawSegment(Demo.mouse, nearestInfo.p, 	new Demo.Color(127, 127, 127, 1.0));
+                Demo.renderer.drawDot(3, Demo.mouse, 'rgba(127, 127, 127, 1.0)');
+                Demo.renderer.drawSegment(Demo.mouse, nearestInfo.p, 	'rgba(127, 127, 127, 1.0)');
 
                 // Draw a red bounding box around the shape under the mouse.
-                if(nearestInfo.d < 0) Demo.renderer.drawBB(nearestInfo.shape.getBB(), new Demo.Color(255,0,0,1));
+                if(nearestInfo.d < 0) Demo.renderer.drawBB(nearestInfo.shape.getBB(), 'rgba(255,0,0,1)');
             }
         }
     })

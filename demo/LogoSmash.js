@@ -99,7 +99,7 @@
 
 //static void
     var DrawDot = function(/*cpBody*/ body, /*void*/ unused) {
-        Demo.renderer.drawDot(3.0, body.getPos(), new Demo.Color(200.0, 210.0, 230.0, 1.0));
+        Demo.renderer.drawDot(3.0, body.getPos(), 'rgba(200.0, 210.0, 230.0, 1.0)');
     }
 
 //static void
@@ -127,7 +127,7 @@
         var width = 1
         var height = 1
 
-        Demo.renderer.drawRect(pos, width, height, new Demo.Color(200, 210, 230, 1.0))
+        Demo.renderer.drawRect(pos, width, height, 'rgba(200, 210, 230, 1.0)')
     }
 
 })(function() {

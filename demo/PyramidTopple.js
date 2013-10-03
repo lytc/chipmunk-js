@@ -3,12 +3,12 @@
 
     Demo.add({
         name: 'Pyramid Topple'
-        ,steps: 1
+        ,steps: 3
 
         ,init: function() {
             /*cpSpace*/ var space = this.space
             space.setIterations(30);
-            space.gravity = (cp.v(0, -100));
+            space.gravity = (cp.v(0, -300));
             space.sleepTimeThreshold = (0.5);
             space.collisionSlop = (0.5);
 
