@@ -26,6 +26,7 @@
  */
 (function(exports, global) {
     global["cp"] = exports;
+    var NDEBUG = true;
     "use strict";
     var CP_VERSION_MAJOR = 6;
     var CP_VERSION_MINOR = 2;
@@ -1720,12 +1721,12 @@
             //        /*cpVect*/ var vr = cpvadd(relative_velocity(a, b, r1, r2), surface_vr);
             var a_w_bias = a.w_bias;
             var b_w_bias = b.w_bias;
-            var a_v_bias = a.v_bias;
-            var b_v_bias = b.v_bias;
-            var a_v_bias_x = a_v_bias.x;
-            var a_v_bias_y = a_v_bias.y;
-            var b_v_bias_x = b_v_bias.x;
-            var b_v_bias_y = b_v_bias.y;
+            //        var a_v_bias = a.v_bias;
+            //        var b_v_bias = b.v_bias;
+            var a_v_bias_x = a.v_biasx;
+            var a_v_bias_y = a.v_biasy;
+            var b_v_bias_x = b.v_biasx;
+            var b_v_bias_y = b.v_biasy;
             var av = a.v;
             var bv = b.v;
             var avx = av.x;
@@ -1771,13 +1772,13 @@
             var jy = ny * jBiasJbnOld;
             var a_m_inv = a.m_inv;
             var a_i_inv = a.i_inv;
-            a_v_bias.x = a_v_bias_x - jx * a_m_inv;
-            a_v_bias.y = a_v_bias_y - jy * a_m_inv;
+            a.v_biasx = a_v_bias_x - jx * a_m_inv;
+            a.v_biasy = a_v_bias_y - jy * a_m_inv;
             a.w_bias += a_i_inv * (-r1x * jy + r1y * jx);
             var b_m_inv = b.m_inv;
             var b_i_inv = b.i_inv;
-            b_v_bias.x = b_v_bias_x + jx * b_m_inv;
-            b_v_bias.y = b_v_bias_y + jy * b_m_inv;
+            b.v_biasx = b_v_bias_x + jx * b_m_inv;
+            b.v_biasy = b_v_bias_y + jy * b_m_inv;
             b.w_bias += b_i_inv * (r2x * jy - r2y * jx);
             //		apply_impulses(a, b, r1, r2, cpvrotate(n, cpv(con.jnAcc - jnOld, con.jtAcc - jtOld)));
             var rotx = con.jnAcc - jnOld;
@@ -2826,30 +2827,32 @@
         body.hashid = cpBodyIDCounter++;
         body.p = new Vect(0, 0);
         body.v = new Vect(0, 0);
-        body.f = new Vect(0, 0);
-        body.v_bias = new Vect(0, 0);
+        //    body.f = new Vect(0, 0);
+        //    body.v_bias = new Vect(0, 0);
         //    this.rot = cpvforangle(0.0)
         this.rot = new Vect(1, 0);
         // Setters must be called after full initialization so the sanity checks don't assert on garbage data.
         body.setMass(m);
         body.setMoment(i);
     };
-    Body.prototype = {
-        space: null,
-        shapeList: null,
-        arbiterList: null,
-        constraintList: null,
-        nodeRoot: null,
-        nodeNext: null,
-        nodeIdleTime: 0,
-        w: 0,
-        t: 0,
-        w_bias: 0,
-        v_limit: Infinity,
-        w_limit: Infinity,
-        data: null,
-        a: 0
-    };
+    //Body.prototype.space = null;
+    //Body.prototype.shapeList = null;
+    //Body.prototype.arbiterList = null;
+    //Body.prototype.constraintList = null;
+    //Body.prototype.nodeRoot = null;
+    //Body.prototype.nodeNext = null;
+    Body.prototype.nodeIdleTime = 0;
+    Body.prototype.w = 0;
+    Body.prototype.t = 0;
+    Body.prototype.w_bias = 0;
+    Body.prototype.v_limit = Infinity;
+    Body.prototype.w_limit = Infinity;
+    Body.prototype.fx = 0;
+    Body.prototype.fy = 0;
+    Body.prototype.v_biasx = 0;
+    Body.prototype.v_biasy = 0;
+    Body.prototype.a = 0;
+    //Body.prototype.data = null;
     Body.prototype.getPos = function() {
         return this.p;
     };
@@ -2900,7 +2903,8 @@
             cpAssertSoft(body.i == body.i && body.i_inv == body.i_inv, "Body's moment is invalid.");
             cpv_assert_sane(body.p, "Body's position is invalid.");
             cpv_assert_sane(body.v, "Body's velocity is invalid.");
-            cpv_assert_sane(body.f, "Body's force is invalid.");
+            cpv_assert_sane(body.fx, "Body's force is invalid.");
+            cpv_assert_sane(body.fy, "Body's force is invalid.");
             cpAssertSoft(body.a == body.a && cpfabs(body.a) != Infinity, "Body's angle is invalid.");
             cpAssertSoft(body.w == body.w && cpfabs(body.w) != Infinity, "Body's angular velocity is invalid.");
             cpAssertSoft(body.t == body.t && cpfabs(body.t) != Infinity, "Body's torque is invalid.");
@@ -3006,8 +3010,8 @@
         var body = this;
         var v = body.v;
         //	body.v = cpvclamp(cpvadd(cpvmult(body.v, damping), cpvmult(cpvadd(gravity, cpvmult(body.f, body.m_inv)), dt)), body.v_limit);
-        v.x = v.x * damping + (gravity.x + body.f.x * body.m_inv) * dt;
-        v.y = body.v.y * damping + (gravity.y + body.f.y * body.m_inv) * dt;
+        v.x = v.x * damping + (gravity.x + body.fx * body.m_inv) * dt;
+        v.y = v.y * damping + (gravity.y + body.fy * body.m_inv) * dt;
         var v_limit = body.v_limit;
         if (v_limit < Infinity) {
             var vlenSq = v.x * v.x + v.y * v.y;
@@ -3028,11 +3032,11 @@
     Body.prototype.updatePosition = function(/*cpFloat*/ dt) {
         var body = this;
         //	body.p = cpvadd(body.p, cpvmult(cpvadd(body.v, body.v_bias), dt));
-        body.p.x += (body.v.x + body.v_bias.x) * dt;
-        body.p.y += (body.v.y + body.v_bias.y) * dt;
+        body.p.x += (body.v.x + body.v_biasx) * dt;
+        body.p.y += (body.v.y + body.v_biasy) * dt;
         setAngle(body, body.a + (body.w + body.w_bias) * dt);
         //	body.v_bias = cpv(0, 0);
-        body.v_bias.x = body.v_bias.y = 0;
+        body.v_biasx = body.v_biasy = 0;
         body.w_bias = 0;
         if (NDEBUG) {
             BodySanityCheck(body);
@@ -3042,15 +3046,15 @@
     Body.prototype.resetForces = function() {
         var body = this;
         body.activate();
-        body.f.x = body.f.y = 0;
+        body.fx = body.fy = 0;
         body.t = 0;
     };
     //void
     Body.prototype.applyForce = function(/*cpVect*/ force, /*cpVect*/ r) {
         var body = this;
         body.activate();
-        body.f.x += force.x;
-        body.f.y += force.y;
+        body.fx += force.x;
+        body.fy += force.y;
         //	body.f = cpvadd(body.f, force);
         body.t += cpvcross(r, force);
     };
@@ -5852,7 +5856,9 @@
     };
     //static inline void
     var apply_bias_impulse = function(/*cpBody*/ body, /*cpVect*/ j, /*cpVect*/ r) {
-        body.v_bias = cpvadd(body.v_bias, cpvmult(j, body.m_inv));
+        //	body.v_bias = cpvadd(body.v_bias, cpvmult(j, body.m_inv));
+        body.v_biasx += j.x * body.m_inv;
+        body.v_biasy += j.y * body.m_inv;
         body.w_bias += body.i_inv * cpvcross(r, j);
     };
     //static inline void

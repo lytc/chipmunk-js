@@ -79,8 +79,8 @@
 
         for(var i=0; i<set.count; i++){
             /*cpVect*/ var p = set.points[i].point;
-            Demo.renderer.drawDot(6.0, p, new Demo.Color(255, 0, 0, 1));
-            Demo.renderer.drawSegment(p, cp.v.add(p, cp.v.mult(set.points[i].normal, 10.0)), new Demo.Color(255, 0, 0, 1));
+            Demo.renderer.drawDot(6.0, p, 'rgba(255, 0, 0, 1)');
+            Demo.renderer.drawSegment(p, cp.v.add(p, cp.v.mult(set.points[i].normal, 10.0)), 'rgba(255, 0, 0, 1)');
         }
 
         return false;

@@ -43,7 +43,7 @@
             pentagon_moment = cp.momentForPoly(1.0, verts, cp.vzero);
 
             // Add lots of pentagons.
-            for(var i=0; i<150; i++){
+            for(var i=0; i<200; i++){
                 body = space.addBody(new cp.Body(pentagon_mass, pentagon_moment));
                 /*cpFloat*/ var x = Demo.Random(-320, 320)
                 body.setPos(cp.v(x, Demo.Random(320, 500)));

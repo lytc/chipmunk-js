@@ -53,7 +53,7 @@
                 lastClickState = Demo.rightClick;
             }
             if(Demo.rightClick){
-                Demo.renderer.drawSegment(sliceStart, Demo.mouse, new Demo.Color(255, 0, 0, 1));
+                Demo.renderer.drawSegment(sliceStart, Demo.mouse, 'rgba(255, 0, 0, 1)');
             }
         }
     })

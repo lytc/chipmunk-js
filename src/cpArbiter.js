@@ -457,12 +457,12 @@ Arbiter.prototype.applyImpulse = function () {
         var a_w_bias = a.w_bias;
         var b_w_bias = b.w_bias;
 
-        var a_v_bias = a.v_bias;
-        var b_v_bias = b.v_bias;
-        var a_v_bias_x = a_v_bias.x;
-        var a_v_bias_y = a_v_bias.y;
-        var b_v_bias_x = b_v_bias.x;
-        var b_v_bias_y = b_v_bias.y;
+//        var a_v_bias = a.v_bias;
+//        var b_v_bias = b.v_bias;
+        var a_v_bias_x = a.v_biasx;
+        var a_v_bias_y = a.v_biasy;
+        var b_v_bias_x = b.v_biasx;
+        var b_v_bias_y = b.v_biasy;
 
         var av = a.v;
         var bv = b.v;
@@ -517,14 +517,14 @@ Arbiter.prototype.applyImpulse = function () {
 
         var a_m_inv = a.m_inv;
         var a_i_inv = a.i_inv;
-        a_v_bias.x = a_v_bias_x - jx * a_m_inv;
-        a_v_bias.y = a_v_bias_y - jy * a_m_inv;
+        a.v_biasx = a_v_bias_x - jx * a_m_inv;
+        a.v_biasy = a_v_bias_y - jy * a_m_inv;
         a.w_bias += a_i_inv * (-r1x * jy + r1y * jx);
 
         var b_m_inv = b.m_inv;
         var b_i_inv = b.i_inv;
-        b_v_bias.x = b_v_bias_x + jx * b_m_inv;
-        b_v_bias.y = b_v_bias_y + jy * b_m_inv;
+        b.v_biasx = b_v_bias_x + jx * b_m_inv;
+        b.v_biasy = b_v_bias_y + jy * b_m_inv;
 
         b.w_bias += b_i_inv * (r2x * jy - r2y * jx);
 

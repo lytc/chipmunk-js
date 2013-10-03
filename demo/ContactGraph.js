@@ -121,7 +121,7 @@
         var shapes = arb.getShapes();
         var ball = shapes[0];
         var other = shapes[1];
-//        Demo.drawBB(other.getBB(), new Color(255, 0, 0, 1));
+//        Demo.drawBB(other.getBB(), 'rgba(255, 0, 0, 1)');
 
         countRef.count++;
     }
