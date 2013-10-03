@@ -49,7 +49,9 @@ var apply_impulses = function (/*cpBody*/ a, /*cpBody*/ b, /*cpVect*/ r1, /*cpVe
 
 //static inline void
 var apply_bias_impulse = function(/*cpBody*/ body, /*cpVect*/ j, /*cpVect*/ r) {
-	body.v_bias = cpvadd(body.v_bias, cpvmult(j, body.m_inv));
+//	body.v_bias = cpvadd(body.v_bias, cpvmult(j, body.m_inv));
+    body.v_biasx += j.x * body.m_inv;
+    body.v_biasy += j.y * body.m_inv;
 	body.w_bias += body.i_inv*cpvcross(r, j);
 }
 
