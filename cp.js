@@ -56,6 +56,14 @@
         child.__super__ = parent.prototype;
         return child;
     };
+    if (typeof global.console == "undefined") {
+        global.console = {
+            log: _nothing,
+            warn: _nothing,
+            error: _nothing,
+            trace: _nothing
+        };
+    }
     var cpAssertHard = function(condition, message) {
         if (!condition) {
             console.trace();
@@ -1705,9 +1713,10 @@
         var surface_vr = arb.surface_vr;
         /*cpFloat*/
         var friction = arb.u;
-        for (var i = 0, numContacts = arb.contacts.length; i < numContacts; i++) {
+        var contacts = arb.contacts;
+        for (var i = 0, numContacts = contacts.length; i < numContacts; i++) {
             /*cpContact*/
-            var con = arb.contacts[i];
+            var con = contacts[i];
             /*cpFloat*/
             var nMass = con.nMass;
             /*cpVect*/
@@ -1863,15 +1872,13 @@
     //cpBool
     BB.prototype.intersects = function(/*const cpBB*/ b) {
         var a = this;
-        //    return (a.l <= b.r && b.l <= a.r && a.b <= b.t && b.b <= a.t);
-        return !(b.l > a.r || b.r < a.l || b.t < a.b || b.b > a.t);
+        return a.l <= b.r && b.l <= a.r && a.b <= b.t && b.b <= a.t;
     };
     /// Returns true if @c other lies completely within @c bb.
     //cpBool
     BB.prototype.containsBB = function(/*const cpBB*/ other) {
         var bb = this;
-        //    return (bb.l <= other.l && bb.r >= other.r && bb.b <= other.b && bb.t >= other.t);
-        return !(bb.l > other.l || bb.r < other.r || bb.b > other.b || bb.t < other.t);
+        return bb.l <= other.l && bb.r >= other.r && bb.b <= other.b && bb.t >= other.t;
     };
     /// Returns true if @c bb contains @c v.
     //cpBool
@@ -2593,8 +2600,9 @@
         if (!tree.root) return;
         // LeafUpdate() may modify tree.root. Don't cache it.
         //	cpHashSetEach(tree.leaves, (cpHashSetIteratorFunc)LeafUpdate, tree);
-        for (var hashid in tree.leaves) {
-            tree.leaves[hashid].update(tree);
+        var leaves = tree.leaves;
+        for (var hashid in leaves) {
+            leaves[hashid].update(tree);
         }
         /*cpSpatialIndex **/
         var staticIndex = tree.staticIndex;
@@ -2654,11 +2662,12 @@
     BBTree.prototype.each = function(/*cpSpatialIndexIteratorFunc*/ func, /*void **/ data) {
         /*cpBBTree **/
         var tree = this;
+        var leaves = tree.leaves;
         //    /*eachContext*/ var context = new eachContext(func, data);
         //    cpHashSetEach(tree.leaves, (cpHashSetIteratorFunc)each_helper, &context);
-        for (var hashid in tree.leaves) {
+        for (var hashid in leaves) {
             //        each_helper(tree.leaves[hashid], context)
-            func(tree.leaves[hashid].obj, data);
+            func(leaves[hashid].obj, data);
         }
     };
     //MARK: Tree Optimization
@@ -3143,7 +3152,7 @@
             var dist = cpfsqrt(distsq);
             /*cpVect*/
             var n = dist ? new Vect(deltaX / dist, deltaY / dist) : new Vect(1, 0);
-            return new Contact(cpvlerp(p1, p2, r1 / (r1 + r2)), n, dist - mindist, hash);
+            return new Contact(cpvlerp(p1, p2, r1 / mindist), n, dist - mindist, hash);
         }
     };
     //MARK: Support Points and Edges:
@@ -3694,7 +3703,7 @@
         if (points.d <= mindist) {
             /*cpFloat*/
             var pick = cpvdot(e1.n, points.n) + cpvdot(e2.n, points.n);
-            if (pick != 0 && pick > 0 || // If the edges are both perfectly aligned weird things happen.
+            if (pick > 0 || // If the edges are both perfectly aligned weird things happen.
             // This is *very* common at the start of a simulation.
             // Pick the longest edge as the reference to break the tie.
             pick == 0 && cpvdistsq(e1.a.p, e1.b.p) > cpvdistsq(e2.a.p, e2.b.p)) {
@@ -3740,8 +3749,11 @@
         if (con = CircleToCircleQuery(center, closest, circleShape.r, segmentShape.r, 0)) {
             /*cpVect*/
             var n = con.n;
+            var a_tangent = segmentShape.a_tangent;
+            var b_tangent = segmentShape.b_tangent;
+            var rot = segmentShape.body.rot;
             // Reject endcap collisions if tangents are provided.
-            if ((closest_t != 0 || segmentShape.a_tangent.x == 0 && segmentShape.a_tangent.y == 0 || cpvdot(n, cpvrotate(segmentShape.a_tangent, segmentShape.body.rot)) >= 0) && (closest_t != 1 || segmentShape.b_tangent.x == 0 && segmentShape.b_tangent.y == 0 || cpvdot(n, cpvrotate(segmentShape.b_tangent, segmentShape.body.rot)) >= 0)) {
+            if ((closest_t != 0 || a_tangent.x == 0 && a_tangent.y == 0 || cpvdot(n, cpvrotate(a_tangent, rot)) >= 0) && (closest_t != 1 || b_tangent.x == 0 && b_tangent.y == 0 || cpvdot(n, cpvrotate(b_tangent, rot)) >= 0)) {
                 arr.push(con);
                 return 1;
             }
@@ -4079,6 +4091,9 @@
         seg.r = r;
         seg.a_tangent = new Vect(0, 0);
         seg.b_tangent = new Vect(0, 0);
+        seg.ta = new Vect(0, 0);
+        seg.tb = new Vect(0, 0);
+        seg.tn = new Vect(0, 0);
         Shape.apply(this, arguments);
     };
     _extend(Shape, SegmentShape);
@@ -4086,23 +4101,39 @@
     //static cpBB
     SegmentShape.prototype.cacheData = function(/*cpVect*/ p, /*cpVect*/ rot) {
         var seg = this;
-        seg.ta = cpvadd(p, cpvrotate(seg.a, rot));
-        seg.tb = cpvadd(p, cpvrotate(seg.b, rot));
-        seg.tn = cpvrotate(seg.n, rot);
+        //    seg.ta = cpvadd(p, cpvrotate(seg.a, rot));
+        //    seg.tb = cpvadd(p, cpvrotate(seg.b, rot));
+        var px = p.x;
+        var py = p.y;
+        var rotx = rot.x;
+        var roty = rot.y;
+        var ax = seg.a.x;
+        var ay = seg.a.y;
+        var bx = seg.b.x;
+        var by = seg.b.y;
+        var tax = seg.ta.x = px + ax * rotx - ay * roty;
+        var tay = seg.ta.y = py + ax * roty + ay * rotx;
+        var tbx = seg.tb.x = px + bx * rotx - by * roty;
+        var tby = seg.tb.y = py + bx * roty + by * rotx;
+        //    seg.tn = cpvrotate(seg.n, rot);
+        var nx = seg.n.x;
+        var ny = seg.n.y;
+        seg.tn.x = nx * rotx - ny * roty;
+        seg.tn.y = nx * roty + ny * rotx;
         var l, r, b, t;
-        if (seg.ta.x < seg.tb.x) {
-            l = seg.ta.x;
-            r = seg.tb.x;
+        if (tax < tbx) {
+            l = tax;
+            r = tbx;
         } else {
-            l = seg.tb.x;
-            r = seg.ta.x;
+            l = tbx;
+            r = tax;
         }
-        if (seg.ta.y < seg.tb.y) {
-            b = seg.ta.y;
-            t = seg.tb.y;
+        if (tay < tby) {
+            b = tay;
+            t = tby;
         } else {
-            b = seg.tb.y;
-            t = seg.ta.y;
+            b = tby;
+            t = tay;
         }
         /*cpFloat*/
         var rad = seg.r;
@@ -4210,9 +4241,9 @@
     PolyShape.prototype.transformVerts = function(/*cpVect*/ p, /*cpVect*/ rot) {
         var poly = this;
         /*cpVect*/
-        var src = poly.verts;
+        var verts = poly.verts;
         /*cpVect*/
-        var dst = poly.tVerts;
+        var tVerts = poly.tVerts;
         /*cpFloat*/
         var l = Infinity, r = -Infinity;
         /*cpFloat*/
@@ -4221,12 +4252,14 @@
         var py = p.y;
         var rotx = rot.x;
         var roty = rot.y;
-        for (var i = 0; i < src.length; i++) {
+        for (var i = 0; i < verts.length; i++) {
             /*cpVect*/
             //        var v = cpvadd(p, cpvrotate(src[i], rot));
-            var vx = px + src[i].x * rotx - src[i].y * roty;
-            var vy = py + src[i].x * roty + src[i].y * rotx;
-            dst[i] = new Vect(vx, vy);
+            var vx = px + verts[i].x * rotx - verts[i].y * roty;
+            var vy = py + verts[i].x * roty + verts[i].y * rotx;
+            //        dst[i] = new Vect(vx, vy);
+            tVerts[i].x = vx;
+            tVerts[i].y = vy;
             l = cpfmin(l, vx);
             r = cpfmax(r, vx);
             b = cpfmin(b, vy);
@@ -4244,31 +4277,81 @@
     PolyShape.prototype.transformAxes = function(/*cpVect*/ p, /*cpVect*/ rot) {
         var poly = this;
         /*cpSplittingPlane*/
-        var src = poly.planes;
+        var planes = poly.planes;
         /*cpSplittingPlane*/
-        var dst = poly.tPlanes;
+        var tPlanes = poly.tPlanes;
         var rotx = rot.x;
         var roty = rot.y;
         var px = p.x;
         var py = p.y;
-        for (var i = 0; i < src.length; i++) {
+        for (var i = 0; i < planes.length; i++) {
             /*cpVect*/
             //        var n = cpvrotate(src[i].n, rot);
-            var n = src[i].n;
+            var n = planes[i].n;
             var nx = n.x * rotx - n.y * roty;
             var ny = n.x * roty + n.y * rotx;
             //        dst[i].n = n;
-            dst[i].n.x = nx;
-            dst[i].n.y = ny;
+            tPlanes[i].n.x = nx;
+            tPlanes[i].n.y = ny;
             //        dst[i].d = cpvdot(p, n) + src[i].d;
-            dst[i].d = px * nx + py * ny + src[i].d;
+            tPlanes[i].d = px * nx + py * ny + planes[i].d;
         }
     };
     //static cpBB
     PolyShape.prototype.cacheData = function(/*cpVect*/ p, /*cpVect*/ rot) {
         var poly = this;
-        poly.transformAxes(p, rot);
-        return poly.transformVerts(p, rot);
+        //    poly.transformAxes(p, rot);
+        //    return poly.transformVerts(p, rot);
+        /*cpBB*/
+        //    var bb = poly.bb = poly.transformVerts(p, rot);
+        //
+        //    return bb;
+        /*cpVect*/
+        var verts = poly.verts;
+        /*cpVect*/
+        var tVerts = poly.tVerts;
+        /*cpSplittingPlane*/
+        var planes = poly.planes;
+        /*cpSplittingPlane*/
+        var tPlanes = poly.tPlanes;
+        /*cpFloat*/
+        var l = Infinity, r = -Infinity;
+        /*cpFloat*/
+        var b = Infinity, t = -Infinity;
+        var rotx = rot.x;
+        var roty = rot.y;
+        var px = p.x;
+        var py = p.y;
+        for (var i = 0, len = verts.length; i < len; i++) {
+            /*cpVect*/
+            //        var v = cpvadd(p, cpvrotate(src[i], rot));
+            var vx = px + verts[i].x * rotx - verts[i].y * roty;
+            var vy = py + verts[i].x * roty + verts[i].y * rotx;
+            //        dst[i] = new Vect(vx, vy);
+            tVerts[i].x = vx;
+            tVerts[i].y = vy;
+            l = cpfmin(l, vx);
+            r = cpfmax(r, vx);
+            b = cpfmin(b, vy);
+            t = cpfmax(t, vy);
+            /*cpVect*/
+            //        var n = cpvrotate(src[i].n, rot);
+            var n = planes[i].n;
+            var nx = n.x * rotx - n.y * roty;
+            var ny = n.x * roty + n.y * rotx;
+            //        dst[i].n = n;
+            tPlanes[i].n.x = nx;
+            tPlanes[i].n.y = ny;
+            //        dst[i].d = cpvdot(p, n) + src[i].d;
+            tPlanes[i].d = px * nx + py * ny + planes[i].d;
+        }
+        /*cpFloat*/
+        var radius = poly.r;
+        var bb = poly.bb;
+        bb.l = l - radius;
+        bb.b = b - radius;
+        bb.r = r + radius;
+        bb.t = t + radius;
     };
     //cpNearestPointQueryInfo
     PolyShape.prototype.nearestPointQuery = function(/*cpVect*/ p) {
@@ -4407,6 +4490,7 @@
         var numVerts = verts.length;
         for (var i = 0; i < numVerts; i++) {
             poly.verts[i] = cpvadd(offset, verts[i]);
+            poly.tVerts[i] = new Vect(0, 0);
         }
         // TODO: Why did I add this? It duplicates work from above.
         for (/*int*/ i = 0; i < verts.length; i++) {
@@ -4465,7 +4549,12 @@
     };
     var cpDefaultCollisionHandler = new cpCollisionHandler(0, 0, alwaysCollide, alwaysCollide, _nothing, _nothing, null);
     //cpSpace*
+    var done = false;
     var Space = cp.Space = function() {
+        if (NDEBUG && !done) {
+            cpAssertWarn(false, "Initializing cpSpace - Chipmunk v" + cp.versionString + " (Debug Enabled)\n" + "use cp.min.js to disable debug mode and runtime assertion checks");
+            done = true;
+        }
         var space = this;
         space.iterations = 10;
         space.gravity = cpvzero;
@@ -5400,8 +5489,7 @@
     //MARK: Locking Functions
     //void
     Space.prototype.lock = function() {
-        var space = this;
-        space.locked++;
+        this.locked++;
     };
     //void
     Space.prototype.unlock = function(/*cpBool*/ runPostStep) {
@@ -5416,7 +5504,7 @@
             while (waking = rousedBodies.pop()) {
                 space.activateBody(/*cpBody*/ waking);
             }
-            if (space.locked == 0 && runPostStep && !space.skipPostStep) {
+            if (runPostStep && !space.skipPostStep) {
                 space.skipPostStep = true;
                 /*cpArray*/
                 var arr = space.postStepCallbacks;
@@ -5428,7 +5516,7 @@
                     var func = callback.func;
                     // Mark the func as null in case calling it calls cpSpaceRunPostStepCallbacks() again.
                     // TODO need more tests around this case I think.
-                    callback.func = null;
+                    //                callback.func = null;
                     if (func) func(space, callback.key, callback.data);
                 }
                 space.skipPostStep = false;
@@ -5454,7 +5542,7 @@
         if (sensor && handler == cpDefaultCollisionHandler) return id;
         // Shape 'a' should have the lower shape type. (required by cpCollideShapes() )
         // TODO remove me: a < b comparison is for debugging collisions
-        if (a.type > b.type || a.type == b.type && a < b) {
+        if (a.type > b.type) {
             /*cpShape*/
             var temp = a;
             a = b;
@@ -5569,7 +5657,7 @@
         space.lock();
         {
             // Integrate positions
-            for (var i = 0; i < bodies.length; i++) {
+            for (var i = 0, len = bodies.length; i < len; i++) {
                 /*cpBody*/
                 var body = /*cpBody*/ bodies[i];
                 body.updatePosition(dt);
@@ -5613,7 +5701,7 @@
             var damping = cpfpow(space.damping, dt);
             /*cpVect*/
             var gravity = space.gravity;
-            for (var i = 0; i < bodies.length; i++) {
+            for (var i = 0, len = bodies.length; i < len; i++) {
                 bodies[i].updateVelocity(gravity, damping, dt);
             }
             // Apply cached impulses

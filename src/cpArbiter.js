@@ -438,9 +438,10 @@ Arbiter.prototype.applyImpulse = function () {
     /*cpFloat*/
     var friction = arb.u;
 
-    for (var i = 0, numContacts = arb.contacts.length; i < numContacts; i++) {
+    var contacts = arb.contacts;
+    for (var i = 0, numContacts = contacts.length; i < numContacts; i++) {
         /*cpContact*/
-        var con = arb.contacts[i];
+        var con = contacts[i];
         /*cpFloat*/
         var nMass = con.nMass;
         /*cpVect*/
