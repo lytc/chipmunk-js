@@ -11,9 +11,9 @@ PolyShape.prototype.type = CP_POLY_SHAPE;
 PolyShape.prototype.transformVerts = function (/*cpVect*/ p, /*cpVect*/ rot) {
     var poly = this;
     /*cpVect*/
-    var src = poly.verts;
+    var verts = poly.verts;
     /*cpVect*/
-    var dst = poly.tVerts;
+    var tVerts = poly.tVerts;
 
     /*cpFloat*/
     var l = Infinity, r = -Infinity;
@@ -25,12 +25,15 @@ PolyShape.prototype.transformVerts = function (/*cpVect*/ p, /*cpVect*/ rot) {
     var rotx = rot.x;
     var roty = rot.y;
     
-    for (var i = 0; i < src.length; i++) {
+    for (var i = 0; i < verts.length; i++) {
         /*cpVect*/
 //        var v = cpvadd(p, cpvrotate(src[i], rot));
-        var vx = px + src[i].x * rotx - src[i].y * roty;
-        var vy = py + src[i].x * roty + src[i].y * rotx;
-        dst[i] = new Vect(vx, vy);
+        var vx = px + verts[i].x * rotx - verts[i].y * roty;
+        var vy = py + verts[i].x * roty + verts[i].y * rotx;
+//        dst[i] = new Vect(vx, vy);
+        tVerts[i].x = vx;
+        tVerts[i].y = vy;
+
         l = cpfmin(l, vx);
         r = cpfmax(r, vx);
         b = cpfmin(b, vy);
@@ -51,28 +54,28 @@ PolyShape.prototype.transformVerts = function (/*cpVect*/ p, /*cpVect*/ rot) {
 PolyShape.prototype.transformAxes = function (/*cpVect*/ p, /*cpVect*/ rot) {
     var poly = this;
     /*cpSplittingPlane*/
-    var src = poly.planes;
+    var planes = poly.planes;
     /*cpSplittingPlane*/
-    var dst = poly.tPlanes;
+    var tPlanes = poly.tPlanes;
 
     var rotx = rot.x;
     var roty = rot.y;
     var px = p.x;
     var py = p.y;
 
-    for (var i = 0; i < src.length; i++) {
+    for (var i = 0; i < planes.length; i++) {
         /*cpVect*/
 //        var n = cpvrotate(src[i].n, rot);
-        var n = src[i].n;
+        var n = planes[i].n;
         var nx = n.x * rotx - n.y * roty;
         var ny = n.x * roty + n.y * rotx;
 
 //        dst[i].n = n;
-        dst[i].n.x = nx;
-        dst[i].n.y = ny;
+        tPlanes[i].n.x = nx;
+        tPlanes[i].n.y = ny;
 
 //        dst[i].d = cpvdot(p, n) + src[i].d;
-        dst[i].d = (px * nx + py * ny) + src[i].d;
+        tPlanes[i].d = (px * nx + py * ny) + planes[i].d;
     }
 }
 
@@ -80,12 +83,67 @@ PolyShape.prototype.transformAxes = function (/*cpVect*/ p, /*cpVect*/ rot) {
 PolyShape.prototype.cacheData = function (/*cpVect*/ p, /*cpVect*/ rot) {
     var poly = this;
 
-    poly.transformAxes(p, rot);
-    return poly.transformVerts(p, rot);
+//    poly.transformAxes(p, rot);
+//    return poly.transformVerts(p, rot);
     /*cpBB*/
 //    var bb = poly.bb = poly.transformVerts(p, rot);
 //
 //    return bb;
+
+    /*cpVect*/
+    var verts = poly.verts;
+    /*cpVect*/
+    var tVerts = poly.tVerts;
+    /*cpSplittingPlane*/
+    var planes = poly.planes;
+    /*cpSplittingPlane*/
+    var tPlanes = poly.tPlanes;
+
+    /*cpFloat*/
+    var l = Infinity, r = -Infinity;
+    /*cpFloat*/
+    var b = Infinity, t = -Infinity;
+
+    var rotx = rot.x;
+    var roty = rot.y;
+    var px = p.x;
+    var py = p.y;
+
+    for (var i = 0, len = verts.length; i < len; i++) {
+        /*cpVect*/
+//        var v = cpvadd(p, cpvrotate(src[i], rot));
+        var vx = px + verts[i].x * rotx - verts[i].y * roty;
+        var vy = py + verts[i].x * roty + verts[i].y * rotx;
+//        dst[i] = new Vect(vx, vy);
+        tVerts[i].x = vx;
+        tVerts[i].y = vy;
+
+        l = cpfmin(l, vx);
+        r = cpfmax(r, vx);
+        b = cpfmin(b, vy);
+        t = cpfmax(t, vy);
+
+        /*cpVect*/
+//        var n = cpvrotate(src[i].n, rot);
+        var n = planes[i].n;
+        var nx = n.x * rotx - n.y * roty;
+        var ny = n.x * roty + n.y * rotx;
+
+//        dst[i].n = n;
+        tPlanes[i].n.x = nx;
+        tPlanes[i].n.y = ny;
+
+//        dst[i].d = cpvdot(p, n) + src[i].d;
+        tPlanes[i].d = (px * nx + py * ny) + planes[i].d;
+    }
+
+    /*cpFloat*/
+    var radius = poly.r;
+    var bb = poly.bb;
+    bb.l = l - radius
+    bb.b = b - radius
+    bb.r = r + radius
+    bb.t = t + radius
 }
 
 //cpNearestPointQueryInfo
@@ -256,6 +314,7 @@ var setUpVerts = function (/*cpPolyShape **/poly, /*const cpVect **/verts, /*cpV
 
     for (var i = 0; i < numVerts; i++) {
         poly.verts[i] = cpvadd(offset, verts[i]);
+        poly.tVerts[i] = new Vect(0, 0);
     }
 
     // TODO: Why did I add this? It duplicates work from above.

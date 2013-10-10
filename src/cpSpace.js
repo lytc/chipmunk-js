@@ -24,7 +24,13 @@ var cpShapeGetBB = function (shape) {
 var cpDefaultCollisionHandler = new cpCollisionHandler(0, 0, alwaysCollide, alwaysCollide, _nothing, _nothing, null);
 
 //cpSpace*
+var done = false;
 var Space = cp.Space = function () {
+    if (NDEBUG && !done) {
+        cpAssertWarn(false, 'Initializing cpSpace - Chipmunk v' + cp.versionString + ' (Debug Enabled)\n' +
+            'use cp.min.js to disable debug mode and runtime assertion checks');
+        done = true;
+    }
     var space = this;
 
     space.iterations = 10;

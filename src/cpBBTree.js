@@ -675,8 +675,9 @@ BBTree.prototype.reindexQuery = function(/*cpSpatialIndexQueryFunc*/ func, /*voi
 	// LeafUpdate() may modify tree.root. Don't cache it.
 
 //	cpHashSetEach(tree.leaves, (cpHashSetIteratorFunc)LeafUpdate, tree);
-	for (var hashid in tree.leaves) {
-        tree.leaves[hashid].update(tree);
+    var leaves = tree.leaves;
+	for (var hashid in leaves) {
+        leaves[hashid].update(tree);
     }
 
 	/*cpSpatialIndex **/ var staticIndex = tree.staticIndex;
@@ -747,12 +748,13 @@ BBTree.prototype.query = function(/*void **/obj, /*cpBB*/ bb, /*cpSpatialIndexQu
 BBTree.prototype.each = function(/*cpSpatialIndexIteratorFunc*/ func, /*void **/data)
 {
     /*cpBBTree **/ var tree = this;
+    var leaves = tree.leaves;
 //    /*eachContext*/ var context = new eachContext(func, data);
 
 //    cpHashSetEach(tree.leaves, (cpHashSetIteratorFunc)each_helper, &context);
-    for (var hashid in tree.leaves) {
+    for (var hashid in leaves) {
 //        each_helper(tree.leaves[hashid], context)
-        func(tree.leaves[hashid].obj, data)
+        func(leaves[hashid].obj, data)
     }
 }
 

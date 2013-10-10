@@ -208,6 +208,9 @@ var SegmentShape = cp.SegmentShape = function (/*cpBody*/ body, /*cpVect*/ a, /*
 
     seg.a_tangent = new Vect(0, 0);
     seg.b_tangent = new Vect(0, 0);
+    seg.ta = new Vect(0, 0);
+    seg.tb = new Vect(0, 0);
+    seg.tn = new Vect(0, 0);
 
     Shape.apply(this, arguments);
 }
@@ -219,26 +222,45 @@ SegmentShape.prototype.type = CP_SEGMENT_SHAPE;
 //static cpBB
 SegmentShape.prototype.cacheData = function (/*cpVect*/ p, /*cpVect*/ rot) {
     var seg = this;
-    seg.ta = cpvadd(p, cpvrotate(seg.a, rot));
-    seg.tb = cpvadd(p, cpvrotate(seg.b, rot));
-    seg.tn = cpvrotate(seg.n, rot);
+//    seg.ta = cpvadd(p, cpvrotate(seg.a, rot));
+//    seg.tb = cpvadd(p, cpvrotate(seg.b, rot));
+
+    var px = p.x;
+    var py = p.y;
+    var rotx = rot.x;
+    var roty = rot.y;
+    var ax = seg.a.x;
+    var ay = seg.a.y;
+    var bx = seg.b.x;
+    var by = seg.b.y;
+
+    var tax = seg.ta.x = px + ax * rotx - ay * roty;
+    var tay = seg.ta.y = py + ax * roty + ay * rotx;
+    var tbx = seg.tb.x = px + bx * rotx - by * roty;
+    var tby = seg.tb.y = py + bx * roty + by * rotx;
+
+//    seg.tn = cpvrotate(seg.n, rot);
+    var nx = seg.n.x;
+    var ny = seg.n.y;
+    seg.tn.x = nx * rotx - ny * roty;
+    seg.tn.y = nx * roty + ny * rotx;
 
     var l, r, b, t;
 
-    if (seg.ta.x < seg.tb.x) {
-        l = seg.ta.x;
-        r = seg.tb.x;
+    if (tax < tbx) {
+        l = tax;
+        r = tbx;
     } else {
-        l = seg.tb.x;
-        r = seg.ta.x;
+        l = tbx;
+        r = tax;
     }
 
-    if (seg.ta.y < seg.tb.y) {
-        b = seg.ta.y;
-        t = seg.tb.y;
+    if (tay < tby) {
+        b = tay;
+        t = tby;
     } else {
-        b = seg.tb.y;
-        t = seg.ta.y;
+        b = tby;
+        t = tay;
     }
 
     /*cpFloat*/

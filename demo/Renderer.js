@@ -74,7 +74,6 @@
             ctx.beginPath()
             ctx.moveTo(a.x, a.y)
             ctx.lineTo(b.x, b.y)
-            ctx.fill()
             ctx.stroke()
             ctx.lineWidth = 1
             ctx.lineCap = 'butt'

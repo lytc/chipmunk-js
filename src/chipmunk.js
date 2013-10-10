@@ -37,6 +37,15 @@ var _extend = function (parent, child, overrides) {
     return child;
 }
 
+if (typeof global.console == 'undefined') {
+    global.console = {
+        log: _nothing,
+        warn: _nothing,
+        error: _nothing,
+        trace: _nothing
+    }
+}
+
 var cpAssertHard = function (condition, message) {
     if (!condition) {
         console.trace()

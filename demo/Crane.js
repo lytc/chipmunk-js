@@ -2,7 +2,7 @@
     var Demo = global.Demo
 
     var HOOK_SENSOR = 1;
-    var CRATE = 0;
+    var CRATE = 2;
 
     Demo.add({
         name: 'Crane'

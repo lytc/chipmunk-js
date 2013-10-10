@@ -91,7 +91,7 @@
     CutTheRope.prototype = {
         width: 1024
         ,height: 576
-        ,steps: 3
+        ,steps: 6
         ,GRABABLE_MASK_BIT: GRABABLE_MASK_BIT
         ,NOT_GRABABLE_MASK: NOT_GRABABLE_MASK
         ,mouseDown: false

@@ -1,9 +1,9 @@
 (function(global) {
     var requestAnimationFrame = global.requestAnimationFrame
-                                || webkitRequestAnimationFrame
-                                || mozRequestAnimationFrame
-                                || oRequestAnimationFrame
-                                || msRequestAnimationFrame;
+                                || global.webkitRequestAnimationFrame
+                                || global.mozRequestAnimationFrame
+                                || global.oRequestAnimationFrame
+                                || global.msRequestAnimationFrame;
 
 
     var GRABABLE_MASK_BIT = 1<<31;
@@ -47,7 +47,7 @@
     var Demo = {
         GRABABLE_MASK_BIT: GRABABLE_MASK_BIT
         ,NOT_GRABABLE_MASK: NOT_GRABABLE_MASK
-        ,demoList: []
+        ,demoList: {}
         ,rightClick: false
         ,mouse: cp.v(0, 0)
         ,keyboard: cp.v(0, 0)
@@ -90,7 +90,7 @@
 
             child.__super__ = parent.prototype
 
-            Demo.demoList.push(child)
+            Demo.demoList[child.prototype.name] = child
             return child
         }
 
@@ -210,9 +210,9 @@
                     me.drawShapes()
                     me.drawConstraints()
                     me.disableDrawCollisionPoints || me.drawCollisionPoints()
+                    me.drawHighlightShape()
                     me.drawMouse()
                     me.drawInfo()
-
 
                     me.totalTime += 1/60
                     stats.update()
@@ -224,10 +224,10 @@
             requestAnimationFrame(step)
         }
 
-        ,runDemo: function(index) {
-            var demo = this.demoList[index];
+        ,runDemo: function(name) {
+            var demo = this.demoList[name];
             if (!demo) {
-                throw new Error('Demo not found with index ' + index)
+                throw new Error('Demo not found with name ' + name)
             }
 
             $('title').text(demo.prototype.name)
@@ -240,10 +240,10 @@
             this.currentDemo.space.eachShape(this.drawShape)
         }
 
-        ,drawShape: function(/*cpShape*/ shape, /*struct ShapeColors*/ colors) {
+        ,drawShape: function(/*cpShape*/ shape, /*struct ShapeColors*/ fillColor, outlineColor) {
             /*cpBody*/ var body = shape.body;
-            /*Color*/ var fill_color = (colors ? colors.fillColor : Demo.colorForShape(shape));
-            /*Color*/ var outline_color = (colors ? colors.outlineColor : LINE_COLOR);
+            /*Color*/ var fill_color = (fillColor ? fillColor : Demo.colorForShape(shape));
+            /*Color*/ var outline_color = (outlineColor ? outlineColor : LINE_COLOR);
 
             switch(shape.type){
                 case cp.CIRCLE_SHAPE: {
@@ -266,6 +266,14 @@
             }
         }
 
+        ,drawHighlightShape: function() {
+            // Highlight the shape under the mouse because it looks neat.
+            var nearestInfo = this.currentDemo.space.nearestPointQueryNearest(this.mouse, 0.0, cp.ALL_LAYERS, cp.NO_GROUP);
+            if(nearestInfo) {
+                this.drawShape(nearestInfo.shape, 'rgba(0, 0, 0, 0)', 'rgb(255, 0, 0)')
+            }
+        }
+
         ,drawConstraints: function() {
             this.currentDemo.space.eachConstraint(this.drawConstraint)
         }
@@ -282,8 +290,8 @@
                 /*cpVect*/ var a = cp.v.add(body_a.p, cp.v.rotate(joint.anchr1, body_a.rot));
                 /*cpVect*/ var b = cp.v.add(body_b.p, cp.v.rotate(joint.anchr2, body_b.rot));
 
-                renderer.drawDot(5, a, CONSTRAINT_COLOR);
-                renderer.drawDot(5, b, CONSTRAINT_COLOR);
+                renderer.drawDot(4, a, CONSTRAINT_COLOR);
+                renderer.drawDot(4, b, CONSTRAINT_COLOR);
                 renderer.drawSegment(a, b, CONSTRAINT_COLOR);
             } else if(constraint instanceof cp.SlideJoint){
                 /*cpSlideJoint*/ var joint = /*(cpSlideJoint *)*/constraint;
@@ -291,17 +299,17 @@
                 /*cpVect*/ var a = cp.v.add(body_a.p, cp.v.rotate(joint.anchr1, body_a.rot));
                 /*cpVect*/ var b = cp.v.add(body_b.p, cp.v.rotate(joint.anchr2, body_b.rot));
 
-                renderer.drawDot(5, a, CONSTRAINT_COLOR);
-                renderer.drawDot(5, b, CONSTRAINT_COLOR);
+                renderer.drawDot(4, a, CONSTRAINT_COLOR);
+                renderer.drawDot(4, b, CONSTRAINT_COLOR);
                 renderer.drawSegment(a, b, CONSTRAINT_COLOR);
-            } else if(constraint instanceof cp.PinJoint){
+            } else if(constraint instanceof cp.PivotJoint){
                 /*cpPivotJoint*/ var joint = /*(cpPivotJoint *)*/constraint;
 
                 /*cpVect*/ var a = cp.v.add(body_a.p, cp.v.rotate(joint.anchr1, body_a.rot));
                 /*cpVect*/ var b = cp.v.add(body_b.p, cp.v.rotate(joint.anchr2, body_b.rot));
 
-                renderer.drawDot(5, a, CONSTRAINT_COLOR);
-                renderer.drawDot(5, b, CONSTRAINT_COLOR);
+                renderer.drawDot(4, a, CONSTRAINT_COLOR);
+                renderer.drawDot(4, b, CONSTRAINT_COLOR);
             } else if(constraint instanceof cp.GrooveJoint){
                 /*cpGrooveJoint*/ var joint = /*(cpGrooveJoint *)*/constraint;
 
@@ -309,7 +317,7 @@
                 /*cpVect*/ var b = cp.v.add(body_a.p, cp.v.rotate(joint.grv_b, body_a.rot));
                 /*cpVect*/ var c = cp.v.add(body_b.p, cp.v.rotate(joint.anchr2, body_b.rot));
 
-                renderer.drawDot(5, c, CONSTRAINT_COLOR);
+                renderer.drawDot(4, c, CONSTRAINT_COLOR);
                 renderer.drawSegment(a, b, CONSTRAINT_COLOR);
             } else if(constraint instanceof cp.DampedSpring){
                 renderer.drawSpring(/*(cpDampedSpring *)*/constraint, body_a, body_b, CONSTRAINT_COLOR);

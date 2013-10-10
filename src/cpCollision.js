@@ -25,7 +25,7 @@ var CircleToCircleQuery = function (/*const cpVect*/ p1, /*const cpVect*/ p2, /*
         var dist = cpfsqrt(distsq);
         /*cpVect*/
         var n = (dist ? new Vect(deltaX / dist, deltaY / dist) : new Vect(1.0, 0.0));
-        return new Contact(cpvlerp(p1, p2, r1 / (r1 + r2)), n, dist - mindist, hash);
+        return new Contact(cpvlerp(p1, p2, r1 / mindist), n, dist - mindist, hash);
     }
 }
 
@@ -649,7 +649,7 @@ var ContactPoints = function (/*const struct Edge*/ e1, /*const struct Edge*/ e2
         var pick = cpvdot(e1.n, points.n) + cpvdot(e2.n, points.n);
 
         if (
-            (pick != 0.0 && pick > 0.0) ||
+                pick > 0.0 ||
                 // If the edges are both perfectly aligned weird things happen.
                 // This is *very* common at the start of a simulation.
                 // Pick the longest edge as the reference to break the tie.
@@ -704,10 +704,14 @@ var CircleToSegment = function (/*const cpCircleShape **/circleShape, /*const cp
         /*cpVect*/
         var n = con.n;
 
+        var a_tangent = segmentShape.a_tangent;
+        var b_tangent = segmentShape.b_tangent;
+        var rot = segmentShape.body.rot;
+
         // Reject endcap collisions if tangents are provided.
         if (
-            (closest_t != 0.0 || (segmentShape.a_tangent.x == 0 && segmentShape.a_tangent.y == 0) || cpvdot(n, cpvrotate(segmentShape.a_tangent, segmentShape.body.rot)) >= 0.0) &&
-                (closest_t != 1.0 || (segmentShape.b_tangent.x == 0 && segmentShape.b_tangent.y == 0) || cpvdot(n, cpvrotate(segmentShape.b_tangent, segmentShape.body.rot)) >= 0.0)
+            (closest_t != 0.0 || (a_tangent.x == 0 && a_tangent.y == 0) || cpvdot(n, cpvrotate(a_tangent, rot)) >= 0.0) &&
+                (closest_t != 1.0 || (b_tangent.x == 0 && b_tangent.y == 0) || cpvdot(n, cpvrotate(b_tangent, rot)) >= 0.0)
             ) {
             arr.push(con);
             return 1;

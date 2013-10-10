@@ -16,13 +16,15 @@
       margin: auto;
     }
 
-    #demo-list {
+    #nav {
       background-color: #fff;
       position: fixed;
       margin: 0;
       padding: 10px 0;
       left: 0;
       top: 10px;
+      bottom: 10px;
+      width: 300px;
       list-style: none;
       line-height: 20px;
       border-radius: 4px;
@@ -31,30 +33,43 @@
       box-shadow: 0 5px 10px rgba(255, 255, 255, 0.2);
     }
 
-    #demo-list .header {
+    #nav .header {
       font-size: 18px;
       font-weight: bold;
       line-height: 24px;
       border-bottom: 1px solid #ccc;
+      margin: 0;
       margin-bottom: 4px;
     }
 
-    #demo-list a {
+    #nav a {
       text-decoration: none;
       color: #0088cc;
       display: block;
       padding: 2px 30px 2px 20px;
     }
 
-    #demo-list a:hover {
+    #nav a:hover {
       background-color: #0088cc;
       color: #ffffff;
     }
 
-    #demo-list a.current {
+    #nav a.current {
       background-color: #0088cc;
       color: #ffffff;
       opacity: .5;
+    }
+
+    #demo-list {
+        position: absolute;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        overflow: auto;
+        top: 40px;
+        right: 0;
+        bottom: 0;
+        left: 0;
     }
 
   </style>
@@ -63,9 +78,12 @@
   </script>
 </head>
 <body>
-    <ul id="demo-list" data-toggle-state=1>
-      <li class="header"><a href="index.html">Chipmunk JS</a></li>
-    </ul>
+    <div id="nav">
+        <h3 class="header"><a href="index.html">Chipmunk JS</a></h3>
+        <ul id="demo-list" data-toggle-state=1>
+        </ul>
+    </div>
+
     <div id="canvas-container">
       <canvas id="canvas" width="640" height="480" tabindex="1"></canvas>
     </div>
@@ -100,26 +118,30 @@
     <script src="demo/Tank.js"></script>
     <script src="demo/Unicycle.js"></script>
     <script src="demo/Chains.js"></script>
+    <script src="benchmark/mersenne.js"></script>
+    <script src="benchmark/Bench.js"></script>
+
 
     <script>
       jQuery(function() {
+        var $nav = $('#nav')
         var $demoList = $('#demo-list')
 
         function toggleDemoList(state) {
           state || (state = !$demoList.data('toggle-state'))
-          $demoList.data('toggle-state', state)
+          $nav.data('toggle-state', state)
 
           var left = state? 0 : $demoList.width() - 20
-          $demoList.stop().animate({left: -left})
+          $nav.stop().animate({left: -left})
         }
 
-        for (var i = 0; i < Demo.demoList.length; i++) {
-          $demoList.append('<li><a href="#' + i + '" data-index="' + i + '">' + Demo.demoList[i].prototype.name + '</a></li>')
+        for (var name in Demo.demoList) {
+          $demoList.append('<li><a href="#' + name + '" data-name="' + name + '">' + name + '</a></li>')
         }
 
         var hideDemoListTimeoutId = setTimeout(toggleDemoList, 3000)
 
-        $demoList.on({
+        $nav.on({
           mouseenter: function() {
             clearTimeout(hideDemoListTimeoutId)
             toggleDemoList(true)
@@ -131,9 +153,9 @@
             }, 1000)
           }
         })
-        $demoList.on('click', 'a[data-index]', function(e) {
+        $nav.on('click', 'a[data-name]', function(e) {
           e.stopPropagation()
-          var index = $(this).data('index')
+          var index = $(this).data('name')
           Demo.runDemo(index)
           $demoList.find('a.current').removeClass('current')
           $(this).addClass('current')
@@ -142,13 +164,13 @@
 
         Demo.run();
 
-        var demoIndex = parseInt(location.hash.substr(1))
-        if (isNaN(demoIndex)) {
-          demoIndex = 0
+        var demoName = location.hash.substr(1)
+        if (!(Demo.demoList[demoName])) {
+          demoName = Object.keys(Demo.demoList)[0]
         }
-        Demo.runDemo(demoIndex);
+        Demo.runDemo(demoName);
 
-        $demoList.find('a[data-index=' + demoIndex + ']').addClass('current')
+        $nav.find('a[data-name="' + demoName + '"]').addClass('current')
         $('#canvas').focus()
       })
     </script>
