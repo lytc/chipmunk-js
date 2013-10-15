@@ -228,7 +228,7 @@ Body.prototype.updateVelocity = function (/*cpVect*/ gravity, /*cpFloat*/ dampin
     if (v_limit < Infinity) {
         var vlenSq = v.x * v.x + v.y * v.y;
         if (vlenSq > v_limit * v_limit) {
-            var f = cpfsqrt(vlenSq) + CPFLOAT_MIN;
+            var f = cpfsqrt(vlenSq);
             v.x *= v_limit / f;
             v.y *= v_limit / f;
         }

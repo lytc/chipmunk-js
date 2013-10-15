@@ -144,7 +144,7 @@ var cpvclamp = cp.v.clamp = function (/*const cpVect*/ v, /*const cpFloat*/ len)
 
     var vlenSq = v.x * v.x + v.y * v.y;
     if (vlenSq > len * len) {
-        var f = cpfsqrt(vlenSq) + CPFLOAT_MIN;
+        var f = cpfsqrt(vlenSq);
         return new Vect(v.x * len / f, v.y * len / f);
     }
     return v;

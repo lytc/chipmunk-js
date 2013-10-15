@@ -16,16 +16,16 @@ var BBNewForCircle = BB.newForCircle = function (/*const cpVect*/ p, /*const cpF
 //cpBool
 BB.prototype.intersects = function (/*const cpBB*/ b) {
     var a = this;
-    return (a.l <= b.r && b.l <= a.r && a.b <= b.t && b.b <= a.t);
-//    return !(a.l > b.r || b.l > a.r || a.b > b.t || b.b > a.t);
+//    return (a.l <= b.r && b.l <= a.r && a.b <= b.t && b.b <= a.t);
+    return !(a.l > b.r || b.l > a.r || a.b > b.t || b.b > a.t);
 }
 
 /// Returns true if @c other lies completely within @c bb.
 //cpBool
 BB.prototype.containsBB = function (/*const cpBB*/ other) {
     var bb = this;
-    return (bb.l <= other.l && bb.r >= other.r && bb.b <= other.b && bb.t >= other.t);
-//    return !(bb.l > other.l || bb.r < other.r || bb.b > other.b || bb.t < other.t);
+//    return (bb.l <= other.l && bb.r >= other.r && bb.b <= other.b && bb.t >= other.t);
+    return !(bb.l > other.l || bb.r < other.r || bb.b > other.b || bb.t < other.t);
 }
 
 /// Returns true if @c bb contains @c v.
@@ -45,6 +45,14 @@ BB.prototype.merge = function (/*const cpBB*/ b) {
         cpfmax(a.r, b.r),
         cpfmax(a.t, b.t)
     );
+}
+
+BB.prototype.mergeTo = function(b, dest) {
+    var a = this;
+    dest.l = cpfmin(a.l, b.l);
+    dest.b = cpfmin(a.b, b.b);
+    dest.r = cpfmax(a.r, b.r);
+    dest.t = cpfmax(a.t, b.t);
 }
 
 /// Returns a bounding box that holds both @c bb and @c v.
@@ -85,34 +93,50 @@ BB.prototype.mergedArea = function (/*cpBB*/ b) {
 BB.prototype.segmentQuery = function (/*cpVect*/ a, /*cpVect*/ b) {
     var bb = this;
     /*cpFloat*/
-    var idx = 1.0 / (b.x - a.x);
+    var ax = a.x;
+    var ay = a.y;
+    var bx = b.x;
+    var by = b.y;
+    var idx = bx - ax;
     /*cpFloat*/
-    var tx1 = (bb.l == a.x ? -Infinity : (bb.l - a.x) * idx);
+    var tx1 = (bb.l == ax ? -Infinity : (bb.l - ax) / idx);
     /*cpFloat*/
-    var tx2 = (bb.r == a.x ? Infinity : (bb.r - a.x) * idx);
+    var tx2 = (bb.r == ax ? Infinity : (bb.r - ax) / idx);
     /*cpFloat*/
-    var txmin = cpfmin(tx1, tx2);
+    if (tx1 < tx2) {
+        var txmin = tx1;
+        var txmax = tx2;
+    } else {
+        var txmin = tx2;
+        var txmax = tx1;
+    }
+//    var txmin = cpfmin(tx1, tx2);
     /*cpFloat*/
-    var txmax = cpfmax(tx1, tx2);
+//    var txmax = cpfmax(tx1, tx2);
 
     /*cpFloat*/
-    var idy = 1.0 / (b.y - a.y);
+    var idy = by - ay;
     /*cpFloat*/
-    var ty1 = (bb.b == a.y ? -Infinity : (bb.b - a.y) * idy);
+    var ty1 = (bb.b == ay ? -Infinity : (bb.b - ay) / idy);
     /*cpFloat*/
-    var ty2 = (bb.t == a.y ? Infinity : (bb.t - a.y) * idy);
+    var ty2 = (bb.t == ay ? Infinity : (bb.t - ay) / idy);
     /*cpFloat*/
-    var tymin = cpfmin(ty1, ty2);
+//    var tymin = cpfmin(ty1, ty2);
     /*cpFloat*/
-    var tymax = cpfmax(ty1, ty2);
+//    var tymax = cpfmax(ty1, ty2);
+
+    if (ty1 < ty2) {
+        var tymin = ty1;
+        var tymax = ty2;
+    } else {
+        var tymin = ty2;
+        var tymax = ty1;
+    }
 
     if (tymin <= txmax && txmin <= tymax) {
         /*cpFloat*/
-        var min = cpfmax(txmin, tymin);
-        /*cpFloat*/
-        var max = cpfmin(txmax, tymax);
-
-        if (0.0 <= max && min <= 1.0) return cpfmax(min, 0.0);
+        var min;
+        if (0.0 <= cpfmin(txmax, tymax) && (min = cpfmax(txmin, tymin)) <= 1.0) return cpfmax(min, 0.0);
     }
 
     return Infinity;

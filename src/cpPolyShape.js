@@ -47,6 +47,8 @@ PolyShape.prototype.transformVerts = function (/*cpVect*/ p, /*cpVect*/ rot) {
     bb.b = b - radius
     bb.r = r + radius
     bb.t = t + radius
+    poly.bbCenter = bb.center();
+    return bb;
 //    return new BB(l - radius, b - radius, r + radius, t + radius);
 }
 
@@ -83,67 +85,12 @@ PolyShape.prototype.transformAxes = function (/*cpVect*/ p, /*cpVect*/ rot) {
 PolyShape.prototype.cacheData = function (/*cpVect*/ p, /*cpVect*/ rot) {
     var poly = this;
 
-//    poly.transformAxes(p, rot);
-//    return poly.transformVerts(p, rot);
+    poly.transformAxes(p, rot);
+    return poly.transformVerts(p, rot);
     /*cpBB*/
 //    var bb = poly.bb = poly.transformVerts(p, rot);
 //
 //    return bb;
-
-    /*cpVect*/
-    var verts = poly.verts;
-    /*cpVect*/
-    var tVerts = poly.tVerts;
-    /*cpSplittingPlane*/
-    var planes = poly.planes;
-    /*cpSplittingPlane*/
-    var tPlanes = poly.tPlanes;
-
-    /*cpFloat*/
-    var l = Infinity, r = -Infinity;
-    /*cpFloat*/
-    var b = Infinity, t = -Infinity;
-
-    var rotx = rot.x;
-    var roty = rot.y;
-    var px = p.x;
-    var py = p.y;
-
-    for (var i = 0, len = verts.length; i < len; i++) {
-        /*cpVect*/
-//        var v = cpvadd(p, cpvrotate(src[i], rot));
-        var vx = px + verts[i].x * rotx - verts[i].y * roty;
-        var vy = py + verts[i].x * roty + verts[i].y * rotx;
-//        dst[i] = new Vect(vx, vy);
-        tVerts[i].x = vx;
-        tVerts[i].y = vy;
-
-        l = cpfmin(l, vx);
-        r = cpfmax(r, vx);
-        b = cpfmin(b, vy);
-        t = cpfmax(t, vy);
-
-        /*cpVect*/
-//        var n = cpvrotate(src[i].n, rot);
-        var n = planes[i].n;
-        var nx = n.x * rotx - n.y * roty;
-        var ny = n.x * roty + n.y * rotx;
-
-//        dst[i].n = n;
-        tPlanes[i].n.x = nx;
-        tPlanes[i].n.y = ny;
-
-//        dst[i].d = cpvdot(p, n) + src[i].d;
-        tPlanes[i].d = (px * nx + py * ny) + planes[i].d;
-    }
-
-    /*cpFloat*/
-    var radius = poly.r;
-    var bb = poly.bb;
-    bb.l = l - radius
-    bb.b = b - radius
-    bb.r = r + radius
-    bb.t = t + radius
 }
 
 //cpNearestPointQueryInfo

@@ -41,6 +41,7 @@
             shape.setElasticity(0.0);
             shape.setFriction(0.0);
             shape.layers = Demo.NOT_GRABABLE_MASK;
+            shape.draw = drawPix;
 
             bodyCount++;
 

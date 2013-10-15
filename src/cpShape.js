@@ -169,6 +169,8 @@ CircleShape.prototype.cacheData = function (/*cpVect*/ p, /*cpVect*/ rot) {
     bb.r = x + r
     bb.t = y + r
 
+    circle.bbCenter = circle.tc;
+
     return bb;
 }
 
@@ -270,6 +272,8 @@ SegmentShape.prototype.cacheData = function (/*cpVect*/ p, /*cpVect*/ rot) {
     bb.b = b - rad
     bb.r = r + rad
     bb.t = t + rad
+
+    seg.bbCenter = bb.center();
 
     return bb;
 //    return new BB(l - rad, b - rad, r + rad, t + rad);
