@@ -162,8 +162,8 @@
         /*cpVect*/ var centroid = cp.centroidForPoly(clipped);
         /*cpVect*/ var r = cp.v.sub(centroid, body.getPos());
 
-        Demo.renderer.drawPolygon(clipped, 0.0, new Demo.Color(0, 0, 255, 255), new Demo.Color(0, 0, 255, 0.1));
-        Demo.renderer.drawDot(5, centroid, new Demo.Color(0, 0, 255, 1));
+        Demo.renderer.drawPolygon(clipped, 0.0, 'rgba(0, 0, 255, 255)', 'rgba(0, 0, 255, 0.1)');
+        Demo.renderer.drawDot(5, centroid, 'rgba(0, 0, 255, 1)');
 
         /*cpFloat*/ var dt = space.getCurrentTimeStep();
         /*cpVect*/ var g = space.gravity

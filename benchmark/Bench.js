@@ -1,24 +1,32 @@
-var NDEBUG = true;
+(function() {
+    var NDEBUG = true;
 
-var isNode = typeof exports != 'undefined'
-var isBrowser = typeof window != 'undefined'
-var isWebWorker = !isNode && !isBrowser
+    var isNode = typeof exports != 'undefined'
+    var isBrowser = typeof window != 'undefined'
+    var isWebWorker = !isNode && !isBrowser
 
-if (isNode) {
-    require('./mersenne.js');
-} else if (isWebWorker) {
-    importScripts('./mersenne.js')
-}
-
-var print = function(msg) {
-    if (isWebWorker) {
-        postMessage(msg)
-    } else {
-        console.log(msg)
+    if (isNode) {
+        require('./mersenne.js');
+    } else if (isWebWorker) {
+        importScripts('./mersenne.js')
     }
-}
 
-function bench(benchName) {
+    mersenne.seed(45073);
+
+    var print = function() {
+        var args = arguments
+        var msg = [].shift.call(args)
+        msg = msg.replace(/\{(\d+)\}/g, function(m, m1) {
+            return args[m1]
+        })
+        if (isWebWorker) {
+            postMessage(msg)
+        } else {
+            console.log(msg)
+        }
+    }
+
+    var cp = this.cp;
     var cpv = cp.v;
     var cpvadd = cp.v.add;
     var cpvlengthsq = cp.v.lengthsq;
@@ -37,9 +45,27 @@ function bench(benchName) {
     var cpflerp = cp.flerp;
     var cpfpow = cp.fpow;
 
-    var BENCH_SPACE_NEW = function() {
-        return new Space()
+    var bench_list = {};
+
+    if (typeof Demo == 'undefined') {
+        Demo = {
+            add: function(proto) {
+                var klass = function() {
+                    this.space = new cp.Space()
+                }
+
+                var ctor = function() {
+                    this.constructor = klass
+                }
+
+                ctor.prototype = proto
+
+                klass.prototype = new ctor()
+                bench_list[klass.prototype.name] = klass
+            }
+        }
     }
+
     var BENCH_SPACE_STEP = function(space, dt) {
         space.step(dt)
     }
@@ -112,8 +138,7 @@ function bench(benchName) {
 
 
 //static cpSpace *
-    var SetupSpace_simpleTerrain = function(/**/ ) {
-        /*cpSpace*/ var space = BENCH_SPACE_NEW();
+    var SetupSpace_simpleTerrain = function(space) {
         space.iterations = 10;
         space.gravity = cpv(0, -100);
         space.collisionSlop = 0.5;
@@ -130,113 +155,147 @@ function bench(benchName) {
 
     var init = {}
 
-// SimpleTerrain constant sized objects
-//static cpSpace
-    init['SimpleTerrainCircles_1000'] = function(){
-        /*cpSpace*/ var space = SetupSpace_simpleTerrain();
-        for(var i=0; i<1000; i++) add_circle(space, i, 5.0);
+    // SimpleTerrain constant sized objects
+    //static cpSpace
+    Demo.add({
+        name: 'SimpleTerrainCircles_1000',
+        init: function(){
+            /*cpSpace*/ var space = SetupSpace_simpleTerrain(this.space);
+            for(var i=0; i<1000; i++) add_circle(this.space, i, 5.0);
 
-        return space;
-    }
+            return space;
+        }
+    })
 
-//static cpSpace
-    init['SimpleTerrainCircles_500'] = function(){
-        /*cpSpace*/ var space = SetupSpace_simpleTerrain();
-        for(var i=0; i<500; i++) add_circle(space, i, 5.0);
+    //static cpSpace
+    Demo.add({
+        name: 'SimpleTerrainCircles_500',
+        init: function(){
+            /*cpSpace*/ var space = SetupSpace_simpleTerrain(this.space);
+            for(var i=0; i<500; i++) add_circle(this.space, i, 5.0);
 
-        return space;
-    }
+            return space;
+        }
+    })
 
-//static cpSpace
-    init['SimpleTerrainCircles_100'] = function(){
-        /*cpSpace*/ var space = SetupSpace_simpleTerrain();
-        for(var i=0; i<100; i++) add_circle(space, i, 5.0);
+    //static cpSpace
+    Demo.add({
+        name: 'SimpleTerrainCircles_100',
+        init: function(){
+            /*cpSpace*/ var space = SetupSpace_simpleTerrain(this.space);
+            for(var i=0; i<100; i++) add_circle(this.space, i, 5.0);
 
-        return space;
-    }
+            return space;
+        }
+    })
 
-//static cpSpace
-    init['SimpleTerrainBoxes_1000'] = function(){
-        /*cpSpace*/ var space = SetupSpace_simpleTerrain();
-        for(var i=0; i<1000; i++) add_box(space, i, 10.0);
+    //static cpSpace
+    Demo.add({
+        name: 'SimpleTerrainBoxes_1000',
+        init: function(){
+            /*cpSpace*/ var space = SetupSpace_simpleTerrain(this.space);
+            for(var i=0; i<1000; i++) add_box(this.space, i, 10.0);
 
-        return space;
-    }
+            return space;
+        }
+    })
 
-//static cpSpace
-    init['SimpleTerrainBoxes_500'] = function(){
-        /*cpSpace*/ var space = SetupSpace_simpleTerrain();
-        for(var i=0; i<500; i++) add_box(space, i, 10.0);
+    //static cpSpace
+    Demo.add({
+        name: 'SimpleTerrainBoxes_500',
+        init: function(){
+            /*cpSpace*/ var space = SetupSpace_simpleTerrain(this.space);
+            for(var i=0; i<500; i++) add_box(this.space, i, 10.0);
 
-        return space;
-    }
+            return space;
+        }
+    })
 
-//static cpSpace
-    init['SimpleTerrainBoxes_100'] = function(){
-        /*cpSpace*/ var space = SetupSpace_simpleTerrain();
-        for(var i=0; i<100; i++) add_box(space, i, 10.0);
+    //static cpSpace
+    Demo.add({
+        name: 'SimpleTerrainBoxes_100',
+        init: function(){
+            /*cpSpace*/ var space = SetupSpace_simpleTerrain(this.space);
+            for(var i=0; i<100; i++) add_box(this.space, i, 10.0);
 
-        return space;
-    }
+            return space;
+        }
+    })
 
-//static cpSpace
-    init['SimpleTerrainHexagons_1000'] = function(){
-        /*cpSpace*/ var space = SetupSpace_simpleTerrain();
-        for(var i=0; i<1000; i++) add_hexagon(space, i, 5.0);
+    //static cpSpace
+    Demo.add({
+        name: 'SimpleTerrainHexagons_1000',
+        init: function(){
+            /*cpSpace*/ var space = SetupSpace_simpleTerrain(this.space);
+            for(var i=0; i<1000; i++) add_hexagon(this.space, i, 5.0);
 
-        return space;
-    }
+            return space;
+        }
+    })
 
-//static cpSpace
-    init['SimpleTerrainHexagons_500'] = function(){
-        /*cpSpace*/ var space = SetupSpace_simpleTerrain();
-        for(var i=0; i<500; i++) add_hexagon(space, i, 5.0);
+    //static cpSpace
+    Demo.add({
+        name: 'SimpleTerrainHexagons_500',
+        init: function(){
+            /*cpSpace*/ var space = SetupSpace_simpleTerrain(this.space);
+            for(var i=0; i<500; i++) add_hexagon(this.space, i, 5.0);
 
-        return space;
-    }
+            return space;
+        }
+    })
 
-//static cpSpace
-    init['SimpleTerrainHexagons_100'] = function(){
-        /*cpSpace*/ var space = SetupSpace_simpleTerrain();
-        for(var i=0; i<100; i++) add_hexagon(space, i, 5.0);
+    //static cpSpace
+    Demo.add({
+        name: 'SimpleTerrainHexagons_100',
+        init: function(){
+            /*cpSpace*/ var space = SetupSpace_simpleTerrain(this.space);
+            for(var i=0; i<100; i++) add_hexagon(this.space, i, 5.0);
 
-        return space;
-    }
+            return space;
+        }
+    })
 
-
-// SimpleTerrain variable sized objects
-//cpFloat
+    // SimpleTerrain variable sized objects
+    //cpFloat
     var rand_size = function(/**/ ) {
         return cpfpow(1.5, cpflerp(-1.5, 3.5, mersenne.genrand_real2()));
     }
 
-//static cpSpace
-    init['SimpleTerrainVCircles_200'] = function(){
-        /*cpSpace*/ var space = SetupSpace_simpleTerrain();
-        for(var i=0; i<200; i++) add_circle(space, i, 5.0*rand_size());
+    //static cpSpace
+    Demo.add({
+        name: 'SimpleTerrainVCircles_200',
+        init: function(){
+            /*cpSpace*/ var space = SetupSpace_simpleTerrain(this.space);
+            for(var i=0; i<200; i++) add_circle(this.space, i, 5.0*rand_size());
 
-        return space;
-    }
+            return space;
+        }
+    })
 
-//static cpSpace
-    init['SimpleTerrainVBoxes_200'] = function(){
-        /*cpSpace*/ var space = SetupSpace_simpleTerrain();
-        for(var i=0; i<200; i++) add_box(space, i, 8.0*rand_size());
+    //static cpSpace
+    Demo.add({
+        name: 'SimpleTerrainVBoxes_200',
+        init: function(){
+            /*cpSpace*/ var space = SetupSpace_simpleTerrain(this.space);
+            for(var i=0; i<200; i++) add_box(this.space, i, 8.0*rand_size());
 
-        return space;
-    }
+            return space;
+        }
+    })
 
-//static cpSpace
-    init['SimpleTerrainVHexagons_200'] = function(){
-        /*cpSpace*/ var space = SetupSpace_simpleTerrain();
-        for(var i=0; i<200; i++) add_hexagon(space, i, 5.0*rand_size());
+    //static cpSpace
+    Demo.add({
+        name: 'SimpleTerrainVHexagons_200',
+        init: function(){
+            /*cpSpace*/ var space = SetupSpace_simpleTerrain(this.space);
+            for(var i=0; i<200; i++) add_hexagon(this.space, i, 5.0*rand_size());
 
-        return space;
-    }
+            return space;
+        }
+    })
 
-
-// ComplexTerrain
-//static cpVect
+    // ComplexTerrain
+    //static cpVect
     var complex_terrain_verts = [
         cpv( 46.78, 479.00), cpv( 35.00, 475.63), cpv( 27.52, 469.00), cpv( 23.52, 455.00), cpv( 23.78, 441.00), cpv( 28.41, 428.00), cpv( 49.61, 394.00), cpv( 59.00, 381.56), cpv( 80.00, 366.03), cpv( 81.46, 358.00), cpv( 86.31, 350.00), cpv( 77.74, 320.00),
         cpv( 70.26, 278.00), cpv( 67.51, 270.00), cpv( 58.86, 260.00), cpv( 57.19, 247.00), cpv( 38.00, 235.60), cpv( 25.76, 221.00), cpv( 24.58, 209.00), cpv( 27.63, 202.00), cpv( 31.28, 198.00), cpv( 40.00, 193.72), cpv( 48.00, 193.73), cpv( 55.00, 196.70),
@@ -263,67 +322,72 @@ function bench(benchName) {
     ];
     /*int*/ var complex_terrain_count = complex_terrain_verts.length;
 
-//static cpSpace
-    init['ComplexTerrainCircles_1000'] = function(){
-        /*cpSpace*/ var space = BENCH_SPACE_NEW();
-        space.iterations = 10;
-        space.gravity = cpv(0, -100);
-        space.collisionSlop = 0.5;
+    //static cpSpace
+    Demo.add({
+        name: 'ComplexTerrainCircles_1000',
+        init: function(){
+            /*cpSpace*/ var space = this.space;
+            space.iterations = 10;
+            space.gravity = cpv(0, -100);
+            space.collisionSlop = 0.5;
 
-        /*cpVect*/ var offset = cpv(-320, -240);
-        for(var i=0; i<(complex_terrain_count - 1); i++){
-            /*cpVect*/ var a = complex_terrain_verts[i], b = complex_terrain_verts[i+1];
-            space.addShape(new SegmentShape(space.staticBody, cpvadd(a, offset), cpvadd(b, offset), 0.0));
+            /*cpVect*/ var offset = cpv(-320, -240);
+            for(var i=0; i<(complex_terrain_count - 1); i++){
+                /*cpVect*/ var a = complex_terrain_verts[i], b = complex_terrain_verts[i+1];
+                space.addShape(new SegmentShape(space.staticBody, cpvadd(a, offset), cpvadd(b, offset), 0.0));
+            }
+
+            for(var i=0; i<1000; i++){
+                /*cpFloat*/ var radius = 5.0;
+                /*cpFloat*/ var mass = radius*radius;
+                /*cpBody*/ var body = space.addBody(new Body(mass, cpMomentForCircle(mass, 0.0, radius, cpvzero)));
+                body.p = cpvadd(cpvmult(frand_unit_circle(), 180.0), cpv(0.0, 300.0));
+
+                /*cpShape*/ var shape = space.addShape(new CircleShape(body, radius, cpvzero));
+                shape.e = 0.0; shape.u = 0.0;
+            }
+
+            return space;
         }
+    })
 
-        for(var i=0; i<1000; i++){
+    //static cpSpace
+    Demo.add({
+        name: 'ComplexTerrainHexagons_1000',
+        init: function(){
+            /*cpSpace*/ var space = this.space;
+            space.iterations = 10;
+            space.gravity = cpv(0, -100);
+            space.collisionSlop = 0.5;
+
+            /*cpVect*/ var offset = cpv(-320, -240);
+            for(var i=0; i<(complex_terrain_count - 1); i++){
+                /*cpVect*/ var a = complex_terrain_verts[i], b = complex_terrain_verts[i+1];
+                space.addShape(new SegmentShape(space.staticBody, cpvadd(a, offset), cpvadd(b, offset), 0.0));
+            }
+
             /*cpFloat*/ var radius = 5.0;
-            /*cpFloat*/ var mass = radius*radius;
-            /*cpBody*/ var body = space.addBody(new Body(mass, cpMomentForCircle(mass, 0.0, radius, cpvzero)));
-            body.p = cpvadd(cpvmult(frand_unit_circle(), 180.0), cpv(0.0, 300.0));
+            /*cpVect*/ var hexagon = [];
+            for(var i=0; i<6; i++){
+                /*cpFloat*/ var angle = -M_PI*2.0*i/6.0;
+                hexagon[i] = cpvmult(cpv(Math.cos(angle), Math.sin(angle)), radius - bevel);
+            }
 
-            /*cpShape*/ var shape = space.addShape(new CircleShape(body, radius, cpvzero));
-            shape.e = 0.0; shape.u = 0.0;
+            for(var i=0; i<1000; i++){
+                /*cpFloat*/ var mass = radius*radius;
+                /*cpBody*/ var body = space.addBody(new Body(mass, cpMomentForPoly(mass, hexagon, cpvzero)));
+                body.p = cpvadd(cpvmult(frand_unit_circle(), 180.0), cpv(0.0, 300.0));
+
+                /*cpShape*/ var shape = space.addShape(new PolyShape2(body, hexagon, cpvzero, bevel));
+                shape.e = 0.0; shape.u = 0.0;
+            }
+
+            return space;
         }
+    })
 
-        return space;
-    }
-
-//static cpSpace
-    init['ComplexTerrainHexagons_1000'] = function(){
-        /*cpSpace*/ var space = BENCH_SPACE_NEW();
-        space.iterations = 10;
-        space.gravity = cpv(0, -100);
-        space.collisionSlop = 0.5;
-
-        /*cpVect*/ var offset = cpv(-320, -240);
-        for(var i=0; i<(complex_terrain_count - 1); i++){
-            /*cpVect*/ var a = complex_terrain_verts[i], b = complex_terrain_verts[i+1];
-            space.addShape(new SegmentShape(space.staticBody, cpvadd(a, offset), cpvadd(b, offset), 0.0));
-        }
-
-        /*cpFloat*/ var radius = 5.0;
-        /*cpVect*/ var hexagon = [];
-        for(var i=0; i<6; i++){
-            /*cpFloat*/ var angle = -M_PI*2.0*i/6.0;
-            hexagon[i] = cpvmult(cpv(Math.cos(angle), Math.sin(angle)), radius - bevel);
-        }
-
-        for(var i=0; i<1000; i++){
-            /*cpFloat*/ var mass = radius*radius;
-            /*cpBody*/ var body = space.addBody(new Body(mass, cpMomentForPoly(mass, hexagon, cpvzero)));
-            body.p = cpvadd(cpvmult(frand_unit_circle(), 180.0), cpv(0.0, 300.0));
-
-            /*cpShape*/ var shape = space.addShape(new PolyShape2(body, hexagon, cpvzero, bevel));
-            shape.e = 0.0; shape.u = 0.0;
-        }
-
-        return space;
-    }
-
-
-// BouncyTerrain
-//static cpVect
+    // BouncyTerrain
+    //static cpVect
     var bouncy_terrain_verts = [
         cpv(537.18,  23.00), cpv(520.50,  36.00), cpv(501.53,  63.00), cpv(496.14,  76.00), cpv(498.86,  86.00), cpv(504.00,  90.51), cpv(508.00,  91.36), cpv(508.77,  84.00), cpv(513.00,  77.73), cpv(519.00,  74.48), cpv(530.00,  74.67), cpv(545.00,  54.65),
         cpv(554.00,  48.77), cpv(562.00,  46.39), cpv(568.00,  45.94), cpv(568.61,  47.00), cpv(567.94,  55.00), cpv(571.27,  64.00), cpv(572.92,  80.00), cpv(572.00,  81.39), cpv(563.00,  79.93), cpv(556.00,  82.69), cpv(551.49,  88.00), cpv(549.00,  95.76),
@@ -371,120 +435,124 @@ function bench(benchName) {
     ];
     /*int*/ var bouncy_terrain_count = bouncy_terrain_verts.length;
 
-//static cpSpace
-    init['BouncyTerrainCircles_500'] = function(){
-        /*cpSpace*/ var space = BENCH_SPACE_NEW();
-        space.iterations = 10;
+    //static cpSpace
+    Demo.add({
+        name: 'BouncyTerrainCircles_500',
+        init: function(){
+            /*cpSpace*/ var space = this.space;
+            space.iterations = 10;
 
-        /*cpVect*/ var offset = cpv(-320, -240);
-        for(var i=0; i<(bouncy_terrain_count - 1); i++){
-            /*cpVect*/ var a = bouncy_terrain_verts[i], b = bouncy_terrain_verts[i+1];
-            /*cpShape*/ var shape = space.addShape(new SegmentShape(space.staticBody, cpvadd(a, offset), cpvadd(b, offset), 0.0));
-            shape.e = 1.0;
+            /*cpVect*/ var offset = cpv(-320, -240);
+            for(var i=0; i<(bouncy_terrain_count - 1); i++){
+                /*cpVect*/ var a = bouncy_terrain_verts[i], b = bouncy_terrain_verts[i+1];
+                /*cpShape*/ var shape = space.addShape(new SegmentShape(space.staticBody, cpvadd(a, offset), cpvadd(b, offset), 0.0));
+                shape.e = 1.0;
+            }
+
+            for(var i=0; i<500; i++){
+                /*cpFloat*/ var radius = 5.0;
+                /*cpFloat*/ var mass = radius*radius;
+                /*cpBody*/ var body = space.addBody(new Body(mass, cpMomentForCircle(mass, 0.0, radius, cpvzero)));
+                body.p = cpvadd(cpvmult(frand_unit_circle(), 130.0), cpvzero);
+                body.v = cpvmult(frand_unit_circle(), 50.0);
+
+                /*cpShape*/ var shape = space.addShape(new CircleShape(body, radius, cpvzero));
+                shape.e = 1.0;
+            }
+
+            return space;
         }
+    })
 
-        for(var i=0; i<500; i++){
+    //static cpSpace
+    Demo.add({
+        name: 'BouncyTerrainHexagons_500',
+        init: function(){
+            /*cpSpace*/ var space = this.space;
+            space.iterations = 10;
+
+            /*cpVect*/ var offset = cpv(-320, -240);
+            for(var i=0; i<(bouncy_terrain_count - 1); i++){
+                /*cpVect*/ var a = bouncy_terrain_verts[i], b = bouncy_terrain_verts[i+1];
+                /*cpShape*/ var shape = space.addShape(new SegmentShape(space.staticBody, cpvadd(a, offset), cpvadd(b, offset), 0.0));
+                shape.e = 1.0;
+            }
+
             /*cpFloat*/ var radius = 5.0;
-            /*cpFloat*/ var mass = radius*radius;
-            /*cpBody*/ var body = space.addBody(new Body(mass, cpMomentForCircle(mass, 0.0, radius, cpvzero)));
-            body.p = cpvadd(cpvmult(frand_unit_circle(), 130.0), cpvzero);
-            body.v = cpvmult(frand_unit_circle(), 50.0);
+            /*cpVect*/ var hexagon = [];
+            for(var i=0; i<6; i++){
+                /*cpFloat*/ var angle = -M_PI*2.0*i/6.0;
+                hexagon[i] = cpvmult(cpv(Math.cos(angle), Math.sin(angle)), radius - bevel);
+            }
 
-            /*cpShape*/ var shape = space.addShape(new CircleShape(body, radius, cpvzero));
-            shape.e = 1.0;
+            for(var i=0; i<500; i++){
+                /*cpFloat*/ var mass = radius*radius;
+                /*cpBody*/ var body = space.addBody(new Body(mass, cpMomentForPoly(mass, hexagon, cpvzero)));
+                body.p = cpvadd(cpvmult(frand_unit_circle(), 130.0), cpvzero);
+                body.v = cpvmult(frand_unit_circle(), 50.0);
+
+                /*cpShape*/ var shape = space.addShape(new PolyShape2(body, hexagon, cpvzero, bevel));
+                shape.e = 1.0;
+            }
+
+            return space;
         }
+    })
 
-        return space;
-    }
-
-//static cpSpace
-    init['BouncyTerrainHexagons_500'] = function(){
-        /*cpSpace*/ var space = BENCH_SPACE_NEW();
-        space.iterations = 10;
-
-        /*cpVect*/ var offset = cpv(-320, -240);
-        for(var i=0; i<(bouncy_terrain_count - 1); i++){
-            /*cpVect*/ var a = bouncy_terrain_verts[i], b = bouncy_terrain_verts[i+1];
-            /*cpShape*/ var shape = space.addShape(new SegmentShape(space.staticBody, cpvadd(a, offset), cpvadd(b, offset), 0.0));
-            shape.e = 1.0;
-        }
-
-        /*cpFloat*/ var radius = 5.0;
-        /*cpVect*/ var hexagon = [];
-        for(var i=0; i<6; i++){
-            /*cpFloat*/ var angle = -M_PI*2.0*i/6.0;
-            hexagon[i] = cpvmult(cpv(Math.cos(angle), Math.sin(angle)), radius - bevel);
-        }
-
-        for(var i=0; i<500; i++){
-            /*cpFloat*/ var mass = radius*radius;
-            /*cpBody*/ var body = space.addBody(new Body(mass, cpMomentForPoly(mass, hexagon, cpvzero)));
-            body.p = cpvadd(cpvmult(frand_unit_circle(), 130.0), cpvzero);
-            body.v = cpvmult(frand_unit_circle(), 50.0);
-
-            /*cpShape*/ var shape = space.addShape(new PolyShape2(body, hexagon, cpvzero, bevel));
-            shape.e = 1.0;
-        }
-
-        return space;
-    }
-
-
-// No collisions
-
-//cpBool
+    // No collisions
+    //cpBool
     var NoCollide_begin = function(/*cpArbiter*/ arb, /*cpSpace*/ space, /*void*/ data) {
-//	abort();
-
         return true;
     }
 
 
-//static cpSpace
-    init['NoCollide'] = function(){
-        /*cpSpace*/ var space = BENCH_SPACE_NEW();
-        space.iterations = 10;
+    //static cpSpace
+    Demo.add({
+        name: 'NoCollide',
+        init: function(){
+            /*cpSpace*/ var space = this.space;
+            space.iterations = 10;
 
-        space.addCollisionHandler(2, 2, NoCollide_begin, null, null, null, null);
+            space.addCollisionHandler(2, 2, NoCollide_begin, null, null, null, null);
 
-        /*float*/ var radius = 4.5;
+            /*float*/ var radius = 4.5;
 
-        space.addShape(new SegmentShape(space.staticBody, cpv(-330-radius, -250-radius), cpv( 330+radius, -250-radius), 0.0)).e = 1.0;
-        space.addShape(new SegmentShape(space.staticBody, cpv( 330+radius,  250+radius), cpv( 330+radius, -250-radius), 0.0)).e = 1.0;
-        space.addShape(new SegmentShape(space.staticBody, cpv( 330+radius,  250+radius), cpv(-330-radius,  250+radius), 0.0)).e = 1.0;
-        space.addShape(new SegmentShape(space.staticBody, cpv(-330-radius, -250-radius), cpv(-330-radius,  250+radius), 0.0)).e = 1.0;
+            space.addShape(new SegmentShape(space.staticBody, cpv(-330-radius, -250-radius), cpv( 330+radius, -250-radius), 0.0)).e = 1.0;
+            space.addShape(new SegmentShape(space.staticBody, cpv( 330+radius,  250+radius), cpv( 330+radius, -250-radius), 0.0)).e = 1.0;
+            space.addShape(new SegmentShape(space.staticBody, cpv( 330+radius,  250+radius), cpv(-330-radius,  250+radius), 0.0)).e = 1.0;
+            space.addShape(new SegmentShape(space.staticBody, cpv(-330-radius, -250-radius), cpv(-330-radius,  250+radius), 0.0)).e = 1.0;
 
-        for(var x=-320; x<=320; x+=20){
-            for(var y=-240; y<=240; y+=20){
-                space.addShape(new CircleShape(space.staticBody, radius, cpv(x, y)));
+            for(var x=-320; x<=320; x+=20){
+                for(var y=-240; y<=240; y+=20){
+                    space.addShape(new CircleShape(space.staticBody, radius, cpv(x, y)));
+                }
             }
+
+            for(var y=10-240; y<=240; y+=40){
+                /*cpFloat*/ var mass = 7.0;
+                /*cpBody*/ var body = space.addBody(new Body(mass, cpMomentForCircle(mass, 0.0, radius, cpvzero)));
+                body.p = cpv(-320.0, y);
+                body.v = cpv(100.0, 0.0);
+
+                /*cpShape*/ var shape = space.addShape(new CircleShape(body, radius, cpvzero));
+                shape.e = 1.0;
+                shape.collision_type = 2;
+            }
+
+            for(var x=30-320; x<=320; x+=40){
+                /*cpFloat*/ var mass = 7.0;
+                /*cpBody*/ var body = space.addBody(new Body(mass, cpMomentForCircle(mass, 0.0, radius, cpvzero)));
+                body.p = cpv(x, -240.0);
+                body.v = cpv(0.0, 100.0);
+
+                /*cpShape*/ var shape = space.addShape(new CircleShape(body, radius, cpvzero));
+                shape.e = 1.0;
+                shape.collision_type = 2;
+            }
+
+            return space;
         }
-
-        for(var y=10-240; y<=240; y+=40){
-            /*cpFloat*/ var mass = 7.0;
-            /*cpBody*/ var body = space.addBody(new Body(mass, cpMomentForCircle(mass, 0.0, radius, cpvzero)));
-            body.p = cpv(-320.0, y);
-            body.v = cpv(100.0, 0.0);
-
-            /*cpShape*/ var shape = space.addShape(new CircleShape(body, radius, cpvzero));
-            shape.e = 1.0;
-            shape.collision_type = 2;
-        }
-
-        for(var x=30-320; x<=320; x+=40){
-            /*cpFloat*/ var mass = 7.0;
-            /*cpBody*/ var body = space.addBody(new Body(mass, cpMomentForCircle(mass, 0.0, radius, cpvzero)));
-            body.p = cpv(x, -240.0);
-            body.v = cpv(0.0, 100.0);
-
-            /*cpShape*/ var shape = space.addShape(new CircleShape(body, radius, cpvzero));
-            shape.e = 1.0;
-            shape.collision_type = 2;
-        }
-
-        return space;
-    }
-
+    })
 
 // TODO ideas:
 // addition/removal
@@ -497,6 +565,9 @@ function bench(benchName) {
     var update = function(/*cpSpace*/ space, /*double*/ dt) {
         BENCH_SPACE_STEP(space, dt);
     }
+
+    this.bench = function(benchName) {
+
 
 //// Make a second demo declaration for this demo to use in the regular demo set.
 ///*ChipmunkDemo*/ var BouncyHexagons = new ChipmunkDemo(
@@ -531,59 +602,75 @@ function bench(benchName) {
 
 // /*int*/ var bench_count = sizeof(bench_list)/sizeof(ChipmunkDemo);
 
-    var BENCH = function(n) {
-        print(n);
-        var ticks = n.match(/(\d+)/);
-        ticks = ticks? ticks[1] : 1000;
-        ticks = 100000 / ticks;
-
-        var sample = new Array(9)
-        for (var i = 0; i < sample.length; i++) {
-            var fn = init[n];
-            var space = fn();
-            var start = Date.now()
-            for (var j = 0; j < ticks; j++) {
-                update(space, 1.0/60.0);
+        var now = function() {
+            return typeof performance !== "undefined"? performance.now() : Date.now? Date.now() : (new Date).now()
+        }
+        var index = 0
+        var BENCH = function(n) {
+            var c = new bench_list[n]()
+            c.init()
+            var start = now()
+            for (var j = 0; j < 1000; j++) {
+                update(c.space, 1.0/60.0);
             }
-            var end = Date.now() - start;
-            sample[i] = end;
-            print('Run ' + (i + 1) + ': ' + end);
+            var time = now() - start;
+            time = time.toFixed(2)
+            var vs = time / pref[count];
+            time = ('      ' + time).substr(-8)
+            print('Time({0}) = {1} ms (benchmark - {2}) {3}x', String.fromCharCode(97 + index++), time, n, vs.toFixed(2));
         }
 
-        print(n + ': ' + (sample[3] + sample[4] + sample[5]) / 3);
+        var pref = [11455.827821, 5737.671851, 1004.978694, 25230.889788, 9420.276318, 1777.691469, 18462.136207, 8734.107686, 1969.547277, 2029.364556, 3325.067635, 3395.135126, 11775.068405, 23422.590002, 783.186113, 1547.766394, 20.500056, 20.500056];
+
+        if (!benchName) {
+            var bl = Object.keys(bench_list)
+        } else {
+            var bl = [benchName]
+        }
+
+        var len = bl.length
+        var count = 0
+        var startTime
+        function run() {
+            if (count == len) {
+                var time = now() - startTime
+                print('Total time: {0} ms - {1}x', time.toFixed(2), (time / pref.reduce(function(previousValue, currentValue, index, array){
+                    return previousValue + currentValue;
+                })).toFixed(2))
+                return
+            }
+
+            setTimeout(function() {
+                BENCH(bl[count])
+                count++
+                run()
+            }, 0)
+        }
+        startTime = now()
+        run()
     }
 
-    var bench_list;
+    if (isWebWorker) {
+        onmessage = function (e) {
+            var debug = e.data.debug
+            var benchName = e.data.benchName
 
-    if (!benchName) {
-        bench_list = Object.keys(init)
-    } else {
-        bench_list = [benchName]
-    }
+            importScripts(debug? '../cp.js' : '../cp.min.js')
 
-    for (var i = 0; i < bench_list.length; i++) {
-        BENCH(bench_list[i])
-    }
-}
+            bench(benchName)
+        }
+    } else  if (isNode) {
+        var args = process.argv.splice(2)
+        var debugIndex = args.indexOf('--debug')
+        var debug = debugIndex != -1
 
-if (isWebWorker) {
-    onmessage = function (e) {
-        var debug = e.data.debug
-        var benchName = e.data.benchName
+        print('DEBUG: ' + debug)
 
-        importScripts(debug? '../cp.js' : '../cp.min.js')
-
+        args.splice(debugIndex, 1)
+        var benchName = args[0]
+        var cp = require(debug? '../cp.js' : '../cp.min.js');
         bench(benchName)
     }
-} else  if (isNode) {
-    var args = process.argv.splice(2)
-    var debugIndex = args.indexOf('--debug')
-    var debug = debugIndex != -1
-
-    console.log('DEBUG: ' + debug)
-
-    args.splice(debugIndex, 1)
-    var benchName = args[0]
-    var cp = require(debug? '../cp.js' : '../cp.min.js');
-    bench(benchName)
-}
+})(function() {
+    return this;
+}())

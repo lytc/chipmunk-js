@@ -45,8 +45,7 @@ Space.prototype.addPostStepCallback = function (/*cpPostStepFunc*/ func, /*void*
 
 //void
 Space.prototype.lock = function () {
-    var space = this;
-    space.locked++;
+    this.locked++;
 }
 
 //void
@@ -66,7 +65,7 @@ Space.prototype.unlock = function (/*cpBool*/ runPostStep) {
             space.activateBody(/*cpBody*/waking)
         }
 
-        if (space.locked == 0 && runPostStep && !space.skipPostStep) {
+        if (runPostStep && !space.skipPostStep) {
             space.skipPostStep = true;
 
             /*cpArray*/
@@ -80,7 +79,7 @@ Space.prototype.unlock = function (/*cpBool*/ runPostStep) {
 
                 // Mark the func as null in case calling it calls cpSpaceRunPostStepCallbacks() again.
                 // TODO need more tests around this case I think.
-                callback.func = null;
+//                callback.func = null;
                 if (func) func(space, callback.key, callback.data);
             }
 
@@ -114,7 +113,6 @@ var queryReject = function (/*cpShape*/ a, /*cpShape*/ b) {
 var cpSpaceCollideShapes = function (/*cpShape*/ a, /*cpShape*/ b, /*cpCollisionID*/ id, /*cpSpace*/ space) {
     // Reject any of the simple cases
     if (queryReject(a, b)) return id;
-
     /*cpCollisionHandler*/
     var handler = space.lookupHandler(a.collision_type, b.collision_type);
 
@@ -125,7 +123,7 @@ var cpSpaceCollideShapes = function (/*cpShape*/ a, /*cpShape*/ b, /*cpCollision
     // Shape 'a' should have the lower shape type. (required by cpCollideShapes() )
     // TODO remove me: a < b comparison is for debugging collisions
 
-    if (a.type > b.type || (a.type == b.type && a < b)) {
+    if (a.type > b.type/* || (a.type == b.type && a < b)*/) {
         /*cpShape*/
         var temp = a;
         a = b;
@@ -194,8 +192,6 @@ var cpSpaceCollideShapes = function (/*cpShape*/ a, /*cpShape*/ b, /*cpCollision
 //cpBool
 Space.prototype.arbiterSetFilter = function (arb) {
     var space = this;
-    /*cpTimestamp*/
-    var ticks = space.stamp - arb.stamp;
 
     /*cpBody*/
     var a = arb.body_a, b = arb.body_b;
@@ -209,6 +205,9 @@ Space.prototype.arbiterSetFilter = function (arb) {
         ) {
         return true;
     }
+
+    /*cpTimestamp*/
+    var ticks = space.stamp - arb.stamp;
 
     // Arbiter was used last frame, but not this one
     if (ticks >= 1 && arb.state != cpArbiterStateCached) {
@@ -267,10 +266,8 @@ Space.prototype.step = function (/*cpFloat*/ dt) {
     space.lock();
     {
         // Integrate positions
-        for (var i = 0; i < bodies.length; i++) {
-            /*cpBody*/
-            var body = /*cpBody*/bodies[i];
-            body.updatePosition(dt);
+        for (var i = 0, len = bodies.length; i < len; i++) {
+            bodies[i].updatePosition(dt);
         }
 
         // Find colliding pairs.
@@ -319,7 +316,7 @@ Space.prototype.step = function (/*cpFloat*/ dt) {
         var damping = cpfpow(space.damping, dt);
         /*cpVect*/
         var gravity = space.gravity;
-        for (var i = 0; i < bodies.length; i++) {
+        for (var i = 0, len = bodies.length; i < len; i++) {
             bodies[i].updateVelocity(gravity, damping, dt);
         }
 

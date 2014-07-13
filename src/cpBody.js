@@ -7,9 +7,8 @@ var Body = cp.Body = function (/*cpFloat*/ m, /*cpFloat*/ i) {
 
     body.p = new Vect(0, 0);
     body.v = new Vect(0, 0);
-    body.f = new Vect(0, 0);
-
-    body.v_bias = new Vect(0, 0);
+//    body.f = new Vect(0, 0);
+//    body.v_bias = new Vect(0, 0);
 //    this.rot = cpvforangle(0.0)
     this.rot = new Vect(1.0, 0.0)
 
@@ -18,22 +17,24 @@ var Body = cp.Body = function (/*cpFloat*/ m, /*cpFloat*/ i) {
     body.setMoment(i);
 }
 
-Body.prototype = {
-    space: null,
-    shapeList: null,
-    arbiterList: null,
-    constraintList: null,
-    nodeRoot: null,
-    nodeNext: null,
-    nodeIdleTime: 0.0,
-    w: 0.0,
-    t: 0.0,
-    w_bias: 0.0,
-    v_limit: Infinity,
-    w_limit: Infinity,
-    data: null,
-    a: 0.0
-}
+//Body.prototype.space = null;
+//Body.prototype.shapeList = null;
+//Body.prototype.arbiterList = null;
+//Body.prototype.constraintList = null;
+//Body.prototype.nodeRoot = null;
+//Body.prototype.nodeNext = null;
+Body.prototype.nodeIdleTime = 0.0;
+Body.prototype.w = 0.0;
+Body.prototype.t = 0.0;
+Body.prototype.w_bias = 0.0;
+Body.prototype.v_limit = Infinity;
+Body.prototype.w_limit = Infinity;
+Body.prototype.fx = 0.0;
+Body.prototype.fy = 0.0;
+Body.prototype.v_biasx = 0.0;
+Body.prototype.v_biasy = 0.0;
+Body.prototype.a = 0.0;
+//Body.prototype.data = null;
 
 Body.prototype.getPos = function () {
     return this.p;
@@ -92,7 +93,8 @@ if (NDEBUG) {
 
         cpv_assert_sane(body.p, "Body's position is invalid.");
         cpv_assert_sane(body.v, "Body's velocity is invalid.");
-        cpv_assert_sane(body.f, "Body's force is invalid.");
+        cpv_assert_sane(body.fx, "Body's force is invalid.");
+        cpv_assert_sane(body.fy, "Body's force is invalid.");
 
         cpAssertSoft(body.a == body.a && cpfabs(body.a) != Infinity, "Body's angle is invalid.");
         cpAssertSoft(body.w == body.w && cpfabs(body.w) != Infinity, "Body's angular velocity is invalid.");
@@ -219,14 +221,14 @@ Body.prototype.updateVelocity = function (/*cpVect*/ gravity, /*cpFloat*/ dampin
     var body = this;
     var v = body.v;
 //	body.v = cpvclamp(cpvadd(cpvmult(body.v, damping), cpvmult(cpvadd(gravity, cpvmult(body.f, body.m_inv)), dt)), body.v_limit);
-    v.x = v.x * damping + (gravity.x + body.f.x * body.m_inv) * dt;
-    v.y = body.v.y * damping + (gravity.y + body.f.y * body.m_inv) * dt;
+    v.x = v.x * damping + (gravity.x + body.fx * body.m_inv) * dt;
+    v.y = v.y * damping + (gravity.y + body.fy * body.m_inv) * dt;
 
     var v_limit = body.v_limit;
     if (v_limit < Infinity) {
         var vlenSq = v.x * v.x + v.y * v.y;
         if (vlenSq > v_limit * v_limit) {
-            var f = cpfsqrt(vlenSq) + CPFLOAT_MIN;
+            var f = cpfsqrt(vlenSq);
             v.x *= v_limit / f;
             v.y *= v_limit / f;
         }
@@ -245,13 +247,13 @@ Body.prototype.updateVelocity = function (/*cpVect*/ gravity, /*cpFloat*/ dampin
 Body.prototype.updatePosition = function (/*cpFloat*/ dt) {
     var body = this;
 //	body.p = cpvadd(body.p, cpvmult(cpvadd(body.v, body.v_bias), dt));
-    body.p.x += (body.v.x + body.v_bias.x) * dt;
-    body.p.y += (body.v.y + body.v_bias.y) * dt;
+    body.p.x += (body.v.x + body.v_biasx) * dt;
+    body.p.y += (body.v.y + body.v_biasy) * dt;
 
     setAngle(body, body.a + (body.w + body.w_bias) * dt);
 
 //	body.v_bias = cpv(0, 0);
-    body.v_bias.x = body.v_bias.y = 0;
+    body.v_biasx = body.v_biasy = 0;
     body.w_bias = 0.0;
 
     if (NDEBUG) {
@@ -263,7 +265,7 @@ Body.prototype.updatePosition = function (/*cpFloat*/ dt) {
 Body.prototype.resetForces = function () {
     var body = this;
     body.activate();
-    body.f.x = body.f.y = 0;
+    body.fx = body.fy = 0;
     body.t = 0.0;
 }
 
@@ -271,8 +273,8 @@ Body.prototype.resetForces = function () {
 Body.prototype.applyForce = function (/*cpVect*/ force, /*cpVect*/ r) {
     var body = this;
     body.activate();
-    body.f.x += force.x;
-    body.f.y += force.y;
+    body.fx += force.x;
+    body.fy += force.y;
 //	body.f = cpvadd(body.f, force);
     body.t += cpvcross(r, force);
 }

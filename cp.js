@@ -56,6 +56,14 @@
         child.__super__ = parent.prototype;
         return child;
     };
+    if (typeof global.console == "undefined") {
+        global.console = {
+            log: _nothing,
+            warn: _nothing,
+            error: _nothing,
+            trace: _nothing
+        };
+    }
     var cpAssertHard = function(condition, message) {
         if (!condition) {
             console.trace();
@@ -476,7 +484,7 @@
         //	return (cpvdot(v,v) > len*len) ? cpvmult(cpvnormalize(v), len) : v;
         var vlenSq = v.x * v.x + v.y * v.y;
         if (vlenSq > len * len) {
-            var f = cpfsqrt(vlenSq) + CPFLOAT_MIN;
+            var f = cpfsqrt(vlenSq);
             return new Vect(v.x * len / f, v.y * len / f);
         }
         return v;
@@ -1643,15 +1651,34 @@
         var a = arb.body_a;
         /*cpBody*/
         var b = arb.body_b;
+        var av = a.v;
+        var bv = b.v;
+        var a_m_inv = a.m_inv;
+        var b_m_inv = b.m_inv;
         for (var i = 0; i < arb.contacts.length; i++) {
             /*cpContact*/
             var con = arb.contacts[i];
+            var n = con.n;
+            var r1 = con.r1;
+            var r2 = con.r2;
             /*cpVect*/
             //        var j = cpvrotate(con.n, new Vect(con.jnAcc, con.jtAcc));
-            var jx = con.n.x * con.jnAcc - con.n.y * con.jtAcc;
-            var jy = con.n.x * con.jtAcc + con.n.y * con.jnAcc;
+            var jx = n.x * con.jnAcc - n.y * con.jtAcc;
+            var jy = n.x * con.jtAcc + n.y * con.jnAcc;
             //        apply_impulses(a, b, con.r1, con.r2, cpvmult(j, dt_coef));
-            apply_impulses(a, b, con.r1, con.r2, new Vect(jx * dt_coef, jy * dt_coef));
+            //        apply_impulses(a, b, con.r1, con.r2, new Vect(jx * dt_coef, jy * dt_coef));
+            jx *= dt_coef;
+            jy *= dt_coef;
+            var r1x = r1.x;
+            var r1y = r1.y;
+            var r2x = r2.x;
+            var r2y = r2.y;
+            av.x += -jx * a_m_inv;
+            av.y += -jy * a_m_inv;
+            a.w += a.i_inv * (-r1x * jy + r1y * jx);
+            bv.x += jx * b_m_inv;
+            bv.y += jy * b_m_inv;
+            b.w += b.i_inv * (r2x * jy - r2y * jx);
         }
     };
     // TODO is it worth splitting velocity/position correction?
@@ -1705,9 +1732,10 @@
         var surface_vr = arb.surface_vr;
         /*cpFloat*/
         var friction = arb.u;
-        for (var i = 0, numContacts = arb.contacts.length; i < numContacts; i++) {
+        var contacts = arb.contacts;
+        for (var i = 0, numContacts = contacts.length; i < numContacts; i++) {
             /*cpContact*/
-            var con = arb.contacts[i];
+            var con = contacts[i];
             /*cpFloat*/
             var nMass = con.nMass;
             /*cpVect*/
@@ -1721,12 +1749,12 @@
             //        /*cpVect*/ var vr = cpvadd(relative_velocity(a, b, r1, r2), surface_vr);
             var a_w_bias = a.w_bias;
             var b_w_bias = b.w_bias;
-            var a_v_bias = a.v_bias;
-            var b_v_bias = b.v_bias;
-            var a_v_bias_x = a_v_bias.x;
-            var a_v_bias_y = a_v_bias.y;
-            var b_v_bias_x = b_v_bias.x;
-            var b_v_bias_y = b_v_bias.y;
+            //        var a_v_bias = a.v_bias;
+            //        var b_v_bias = b.v_bias;
+            var a_v_bias_x = a.v_biasx;
+            var a_v_bias_y = a.v_biasy;
+            var b_v_bias_x = b.v_biasx;
+            var b_v_bias_y = b.v_biasy;
             var av = a.v;
             var bv = b.v;
             var avx = av.x;
@@ -1772,13 +1800,13 @@
             var jy = ny * jBiasJbnOld;
             var a_m_inv = a.m_inv;
             var a_i_inv = a.i_inv;
-            a_v_bias.x = a_v_bias_x - jx * a_m_inv;
-            a_v_bias.y = a_v_bias_y - jy * a_m_inv;
+            a.v_biasx = a_v_bias_x - jx * a_m_inv;
+            a.v_biasy = a_v_bias_y - jy * a_m_inv;
             a.w_bias += a_i_inv * (-r1x * jy + r1y * jx);
             var b_m_inv = b.m_inv;
             var b_i_inv = b.i_inv;
-            b_v_bias.x = b_v_bias_x + jx * b_m_inv;
-            b_v_bias.y = b_v_bias_y + jy * b_m_inv;
+            b.v_biasx = b_v_bias_x + jx * b_m_inv;
+            b.v_biasy = b_v_bias_y + jy * b_m_inv;
             b.w_bias += b_i_inv * (r2x * jy - r2y * jx);
             //		apply_impulses(a, b, r1, r2, cpvrotate(n, cpv(con.jnAcc - jnOld, con.jtAcc - jtOld)));
             var rotx = con.jnAcc - jnOld;
@@ -1864,7 +1892,7 @@
     BB.prototype.intersects = function(/*const cpBB*/ b) {
         var a = this;
         //    return (a.l <= b.r && b.l <= a.r && a.b <= b.t && b.b <= a.t);
-        return !(b.l > a.r || b.r < a.l || b.t < a.b || b.b > a.t);
+        return !(a.l > b.r || b.l > a.r || a.b > b.t || b.b > a.t);
     };
     /// Returns true if @c other lies completely within @c bb.
     //cpBool
@@ -1884,6 +1912,13 @@
     BB.prototype.merge = function(/*const cpBB*/ b) {
         var a = this;
         return new BB(cpfmin(a.l, b.l), cpfmin(a.b, b.b), cpfmax(a.r, b.r), cpfmax(a.t, b.t));
+    };
+    BB.prototype.mergeTo = function(b, dest) {
+        var a = this;
+        dest.l = cpfmin(a.l, b.l);
+        dest.b = cpfmin(a.b, b.b);
+        dest.r = cpfmax(a.r, b.r);
+        dest.t = cpfmax(a.t, b.t);
     };
     /// Returns a bounding box that holds both @c bb and @c v.
     //cpBB
@@ -1914,31 +1949,47 @@
     BB.prototype.segmentQuery = function(/*cpVect*/ a, /*cpVect*/ b) {
         var bb = this;
         /*cpFloat*/
-        var idx = 1 / (b.x - a.x);
+        var ax = a.x;
+        var ay = a.y;
+        var bx = b.x;
+        var by = b.y;
+        var idx = bx - ax;
         /*cpFloat*/
-        var tx1 = bb.l == a.x ? -Infinity : (bb.l - a.x) * idx;
+        var tx1 = bb.l == ax ? -Infinity : (bb.l - ax) / idx;
         /*cpFloat*/
-        var tx2 = bb.r == a.x ? Infinity : (bb.r - a.x) * idx;
+        var tx2 = bb.r == ax ? Infinity : (bb.r - ax) / idx;
         /*cpFloat*/
-        var txmin = cpfmin(tx1, tx2);
+        if (tx1 < tx2) {
+            var txmin = tx1;
+            var txmax = tx2;
+        } else {
+            var txmin = tx2;
+            var txmax = tx1;
+        }
+        //    var txmin = cpfmin(tx1, tx2);
         /*cpFloat*/
-        var txmax = cpfmax(tx1, tx2);
+        //    var txmax = cpfmax(tx1, tx2);
         /*cpFloat*/
-        var idy = 1 / (b.y - a.y);
+        var idy = by - ay;
         /*cpFloat*/
-        var ty1 = bb.b == a.y ? -Infinity : (bb.b - a.y) * idy;
+        var ty1 = bb.b == ay ? -Infinity : (bb.b - ay) / idy;
         /*cpFloat*/
-        var ty2 = bb.t == a.y ? Infinity : (bb.t - a.y) * idy;
+        var ty2 = bb.t == ay ? Infinity : (bb.t - ay) / idy;
         /*cpFloat*/
-        var tymin = cpfmin(ty1, ty2);
+        //    var tymin = cpfmin(ty1, ty2);
         /*cpFloat*/
-        var tymax = cpfmax(ty1, ty2);
+        //    var tymax = cpfmax(ty1, ty2);
+        if (ty1 < ty2) {
+            var tymin = ty1;
+            var tymax = ty2;
+        } else {
+            var tymin = ty2;
+            var tymax = ty1;
+        }
         if (tymin <= txmax && txmin <= tymax) {
             /*cpFloat*/
-            var min = cpfmax(txmin, tymin);
-            /*cpFloat*/
-            var max = cpfmin(txmax, tymax);
-            if (0 <= max && min <= 1) return cpfmax(min, 0);
+            var min;
+            if (0 <= cpfmin(txmax, tymax) && (min = cpfmax(txmin, tymin)) <= 1) return cpfmax(min, 0);
         }
         return Infinity;
     };
@@ -2004,111 +2055,90 @@
             dynamicIndex.each(/*cpSpatialIndexIteratorFunc*/ dynamicToStaticIter, context);
         }
     };
-    //typedef struct Node Node;
-    //typedef struct Pair Pair;
-    //struct Node {
-    //	void *obj;
-    //	cpBB bb;
-    //	Node *parent;
-    //	
-    //	union {
-    //		// Internal nodes
-    //		struct { Node *a, *b; } children;
-    //		
-    //		// Leaves
-    //		struct {
-    //			cpTimestamp stamp;
-    //			Pair *pairs;
-    //		} leaf;
-    //	} node;
-    //};
-    // Can't use anonymous unions and still get good x-compiler compatability
-    //#define A node.children.a
-    //#define B node.children.b
-    //#define STAMP node.leaf.stamp
-    //#define PAIRS node.leaf.pairs
-    var Node = function(a, b) {
+    //struct
+    var Node = function(/*void*/
+    tree, /*cpBB*/
+    a, /*Node*/
+    b) {
         var node = this;
+        //    node.obj = null;
         node.bb = a.bb.merge(b.bb);
         node.parent = null;
         node.setA(a);
         node.setB(b);
     };
+    //Node.prototype.isLeaf = false;
     var Leaf = function(tree, obj) {
-        this.bb = new BB(0, 0, 0, 0);
-        var node = this;
-        node.obj = obj;
-        tree.getBB(obj, node.bb);
-        node.parent = null;
-        node.STAMP = 0;
-        node.PAIRS = null;
+        var leaf = this;
+        leaf.obj = obj;
+        leaf.bb = new BB(0, 0, 0, 0);
+        tree.getBB(obj, leaf.bb);
+        leaf.parent = null;
+        leaf.STAMP = 0;
+        leaf.PAIRS = null;
     };
-    //_extend(Node, Leaf)
-    //typedef struct 
-    //var Thread  = function(
-    //	/*Pair **/prev,
-    //	/*Node **/leaf,
-    //	/*Pair **/next
+    //Leaf.prototype.isLeaf = true;
+    // Can't use anonymous unions and still get good x-compiler compatability
+    //var A = node.children.a;
+    //var B = node.children.b;
+    //var STAMP = node.leaf.stamp;
+    //var PAIRS = node.leaf.pairs;
+    //typedef struct
+    //var Thread = function(
+    //	/*Pair*/ prev,
+    //	/*Node*/ leaf,
+    //	/*Pair*/ next
     //) {
-    //    this.prev = prev
-    //    this.leaf = leaf
-    //    this.next = next
+    //    this.prev = prev;
+    //    this.leaf = leaf;
+    //    this.next = next;
     //};
-    //struct 
-    //var Pair = function(
-    //	/*Thread*/ a, b,
-    //	/*cpCollisionID*/ id
-    //) {
-    //    this.a = a;
-    //    this.b = b;
-    //    this.id = id;
-    //};
-    var Pair = function(/*Thread*/
-    leafA, nextA, leafB, nextB, /*cpCollisionID*/
+    //struct
+    var Pair = function(aLeaf, aNext, bLeaf, bNext, /*cpCollisionID*/
     id) {
         this.aPrev = null;
-        this.aLeaf = leafA;
-        this.aNext = nextA;
+        this.aLeaf = aLeaf;
+        this.aNext = aNext;
         this.bPrev = null;
-        this.bLeaf = leafB;
-        this.bNext = nextB;
-        //    this.a = new Thread(null, leafA, nextA);
-        //    this.b = new Thread(null, leafB, nextB);
+        this.bLeaf = bLeaf;
+        this.bNext = bNext;
         this.id = id;
     };
     //cpSpatialIndex *
-    var BBTree = cp.BBTree = function(/*cpSpatialIndexBBFunc*/ bbfunc, /*cpSpatialIndex **/ staticIndex) {
+    var BBTree = function(/*cpSpatialIndexBBFunc*/ bbfunc, /*cpSpatialIndex*/ staticIndex) {
+        /*cpBBTree*/
         var tree = this;
-        SpatialIndex.call(tree, bbfunc, staticIndex);
+        SpatialIndex.call(/*(cpSpatialIndex *)*/ tree, bbfunc, staticIndex);
         tree.velocityFunc = null;
         tree.leaves = {};
-        tree.count = 0;
         tree.root = null;
         tree.pooledNodes = null;
-        tree.pooledPairs = null;
+        tree.pooledLeaves = null;
         tree.stamp = 0;
+        tree.count = 0;
     };
     _extend(SpatialIndex, BBTree);
+    //MARK: Misc Functions
     //static inline cpBB
-    BBTree.prototype.getBB = function(/*void **/ obj, targetBB) {
-        /*cpBBTree **/
+    BBTree.prototype.getBB = function(/*void*/ obj, targetBB) {
+        /*cpBBTree*/
         var tree = this;
-        /*cpBB*/
+        /*cpBB */
         var bb = tree.bbfunc(obj);
-        /*cpBBTreeVelocityFunc*/
+        /*cpBBTreeVelocityFunc */
         var velocityFunc = tree.velocityFunc;
         if (velocityFunc) {
-            /*cpFloat*/
+            /*cpFloat */
             var coef = .1;
-            /*cpFloat*/
+            /*cpFloat */
             var x = (bb.r - bb.l) * coef;
-            /*cpFloat*/
+            /*cpFloat */
             var y = (bb.t - bb.b) * coef;
-            //		/*cpVect*/ var v = cpvmult(velocityFunc(obj), 0.1);
+            //		/*cpVect */ var v = cpvmult(velocityFunc(obj), 0.1);
             var v = velocityFunc(obj);
             var vx = v.x * .1;
             var vy = v.y * .1;
-            //		return new BB(bb.l + cpfmin(-x, v.x), bb.b + cpfmin(-y, v.y), bb.r + cpfmax(x, v.x), bb.t + cpfmax(y, v.y));
+            //		return new BB(bb.l + cpfmin(-x, vx), bb.b + cpfmin(-y, vy), bb.r + cpfmax(x, vx), bb.t + cpfmax(y, vy));
             targetBB.l = bb.l + cpfmin(-x, vx);
             targetBB.b = bb.b + cpfmin(-y, vy);
             targetBB.r = bb.r + cpfmax(x, vx);
@@ -2121,16 +2151,13 @@
         }
     };
     //static inline cpBBTree *
-    //var GetTree = function(/*cpSpatialIndex **/index)
-    //{
+    //var GetTree = function(/*cpSpatialIndex*/ index) {
     //    return index
-    //    return index && index instanceof BBTree? index : null
-    //}
+    //};
     //static inline Node *
-    //var GetRootIfTree = function(/*cpSpatialIndex **/index){
+    //var GetRootIfTree = function(/*cpSpatialIndex*/ index) {
     //    return index.root
-    //    return index && index instanceof BBTree? index.root : null
-    //}
+    //};
     //static inline cpBBTree *
     BBTree.prototype.getMasterTree = function() {
         return this.dynamicIndex || this;
@@ -2141,45 +2168,36 @@
     };
     //MARK: Pair/Thread Functions
     //static void
-    Pair.prototype.recycle = function(/*cpBBTree **/ tree) {
-        /*Pair **/
-        var pair = this;
+    BBTree.prototype.pairRecycle = function(/*Pair*/ pair) {
+        /*cpBBTree*/
+        var tree = this;
         // Share the pool of the master tree.
-        // TODO would be lovely to move the pairs stuff into an external data structure.
+        // TODO: would be lovely to move the pairs stuff into an external data structure.
         tree = tree.getMasterTree();
         pair.aNext = tree.pooledPairs;
         tree.pooledPairs = pair;
     };
     //static Pair *
-    BBTree.prototype.pairFromPool = function(a, nextA, b, nextB, id) {
-        /*cpBBTree **/
+    BBTree.prototype.pairFromPool = function(aLeaf, aNext, bLeaf, bNext, id) {
+        /*cpBBTree*/
         var tree = this;
         // Share the pool of the master tree.
-        // TODO would be lovely to move the pairs stuff into an external data structure.
+        // TODO: would be lovely to move the pairs stuff into an external data structure.
         tree = tree.getMasterTree();
-        /*Pair **/
+        /*Pair */
         var pair = tree.pooledPairs;
         if (pair) {
             tree.pooledPairs = pair.aNext;
-            pair.constructor(a, nextA, b, nextB, id);
-            //        pair.aPrev = null;
-            //        pair.aLeaf = a;
-            //        pair.aNext = nextA;
-            //
-            //        pair.bPrev = null;
-            //        pair.bLeaf = b;
-            //        pair.bNext = nextB;
-            //        pair.id = id;
+            pair.aPrev = null;
+            pair.aLeaf = aLeaf;
+            pair.aNext = aNext;
+            pair.bPrev = null;
+            pair.bLeaf = bLeaf;
+            pair.bNext = bNext;
+            pair.id = id;
             return pair;
         } else {
-            // Pool is exhausted, make more
-            //		Pair *buffer = (Pair *)cpcalloc(1, CP_BUFFER_BYTES);
-            /*Pair **/
-            var buffer = new Pair(a, nextA, b, nextB, id);
-            //        tree.pairAllocatedBuffers.push(buffer);
-            // push all but the first one, return the first instead
-            //		for(/*int*/ var i=1; i<tree.pairAllocatedBuffers.length; i++) PairRecycle(tree, tree.pairAllocatedBuffers[i]);
-            return buffer;
+            return new Pair(aLeaf, aNext, bLeaf, bNext, id);
         }
     };
     //static inline void
@@ -2194,42 +2212,41 @@
         }
     };
     //static void
-    Leaf.prototype.pairsClear = function(/*cpBBTree **/ tree) {
-        /*Node **/
+    Leaf.prototype.pairsClear = function(/*cpBBTree*/ tree) {
+        /*Node*/
         var leaf = this;
-        /*Pair **/
+        /*Pair */
         var pair = leaf.PAIRS;
         leaf.PAIRS = null;
         while (pair) {
             if (pair.aLeaf == leaf) {
-                /*Pair **/
+                /*Pair */
                 var next = pair.aNext;
-                //            pair.b.unlink();
                 ThreadUnlink(pair.bPrev, pair.bLeaf, pair.bNext);
+                tree.pairRecycle(pair);
+                pair = next;
             } else {
-                /*Pair **/
+                /*Pair */
                 var next = pair.bNext;
-                //            pair.a.unlink();
                 ThreadUnlink(pair.aPrev, pair.aLeaf, pair.aNext);
+                tree.pairRecycle(pair);
+                pair = next;
             }
-            pair.recycle(tree);
-            pair = next;
         }
     };
     //static void
-    var PairInsert = function(/*Node **/ a, /*Node **/ b, /*cpBBTree **/ tree) {
-        /*Pair **/
+    BBTree.prototype.pairInsert = function(/*Node*/ a, /*Node*/ b) {
+        /*cpBBTree*/
+        var tree = this;
+        /*Pair */
         var nextA = a.PAIRS, nextB = b.PAIRS;
-        /*Pair **/
+        /*Pair */
         var pair = tree.pairFromPool(a, nextA, b, nextB, 0);
-        //	/*Pair*/ var temp = new Pair(new Thread(null, a, nextA), new Thread(null, b, nextB), 0);
+        //	/*Pair */ var temp = new Pair(a, nextA, b, nextB, 0);
         a.PAIRS = b.PAIRS = pair;
-        //	pair.a = temp.a;
-        //	pair.b = temp.b;
-        //	pair.id = temp.id;
-        //    pair.a = new Thread(null, a, nextA);
-        //    pair.b = new Thread(null, b, nextB);
-        //    pair.id = 0;
+        //    pair.a = temp.a;
+        //    pair.b = temp.b;
+        //    pair.id = temp.id;
         if (nextA) {
             if (nextA.aLeaf == a) nextA.aPrev = pair; else nextA.bPrev = pair;
         }
@@ -2239,62 +2256,89 @@
     };
     //MARK: Node Functions
     //static void
-    Node.prototype.recycle = function(/*cpBBTree **/ tree) {
-        /*Node **/
+    Node.prototype.recycle = function(/*cpBBTree*/ tree) {
+        /*Node*/
         var node = this;
         node.parent = tree.pooledNodes;
         tree.pooledNodes = node;
     };
+    Leaf.prototype.recycle = function(/*cpBBTree*/ tree) {
+        /*Node*/
+        var leaf = this;
+        leaf.parent = tree.pooledLeaves;
+        tree.pooledLeaves = leaf;
+    };
     //static Node *
-    BBTree.prototype.nodeFromPool = function(/*Node **/ a, /*Node **/ b) {
-        /*cpBBTree **/
+    BBTree.prototype.nodeFromPool = function(a, b) {
+        /*cpBBTree*/
         var tree = this;
-        /*Node **/
+        /*Node */
         var node = tree.pooledNodes;
         if (node) {
             tree.pooledNodes = node.parent;
-            node.constructor(a, b);
+            //        node.obj = null;
+            //        node.bb = a.bb.merge(b.bb);
+            a.bb.mergeTo(b.bb, node.bb);
+            node.parent = null;
+            node.setA(a);
+            node.setB(b);
             return node;
         } else {
-            // Pool is exhausted, make more
-            //		Node *buffer = (Node *)cpcalloc(1, CP_BUFFER_BYTES);
-            /*Node **/
-            var buffer = new Node(a, b);
-            //        tree.nodeAllocatedBuffers.push(buffer);
-            // push all but the first one, return the first instead
-            //		for(/*int*/ var i=1; i<tree.nodeAllocatedBuffers.length; i++) NodeRecycle(tree, tree.nodeAllocatedBuffers[i]);
-            return buffer;
+            return new Node(tree, a, b);
+        }
+    };
+    BBTree.prototype.leafFromPool = function(obj) {
+        /*cpBBTree*/
+        var tree = this;
+        /*Node */
+        var leaf = tree.pooledLeaves;
+        if (leaf) {
+            tree.pooledLeaves = leaf.parent;
+            leaf.obj = obj;
+            tree.getBB(obj, leaf.bb);
+            leaf.parent = null;
+            leaf.STAMP = 0;
+            leaf.PAIRS = null;
+            return leaf;
+        } else {
+            return new Leaf(tree, obj);
         }
     };
     //static inline void
-    Node.prototype.setA = function(/*Node **/ value) {
-        /*Node **/
+    Node.prototype.setA = function(/*Node*/ value) {
+        /*Node*/
         var node = this;
         node.A = value;
         value.parent = node;
     };
     //static inline void
-    Node.prototype.setB = function(/*Node **/ value) {
-        /*Node **/
+    Node.prototype.setB = function(/*Node*/ value) {
+        /*Node*/
         var node = this;
         node.B = value;
         value.parent = node;
     };
+    //static Node *
+    //var NodeNew = function(/*cpBBTree*/ tree, /*Node*/ a, /*Node*/ b) {
+    //	/*Node */ var node = NodeFromPool(tree, a, b);
+    //
+    //	return node;
+    //};
     //static inline cpBool
-    Node.prototype.isLeaf = false;
-    Leaf.prototype.isLeaf = true;
+    //var NodeIsLeaf = function(/*Node*/ node) {
+    //	return (node.obj != null);
+    //};
     //static inline Node *
-    Node.prototype.other = function(/*Node **/ child) {
-        /*Node **/
+    Node.prototype.other = function(/*Node*/ child) {
+        /*Node*/
         var node = this;
         return node.A == child ? node.B : node.A;
     };
     //static inline void
-    Node.prototype.replaceChild = function(/*Node **/ child, /*Node **/ value, /*cpBBTree **/ tree) {
-        /*Node **/
+    Node.prototype.replaceChild = function(/*Node*/ child, /*Node*/ value, /*cpBBTree*/ tree) {
+        /*Node*/
         var parent = this;
         if (NDEBUG) {
-            cpAssertSoft(!parent.isLeaf, "Internal Error: Cannot replace child of a leaf.");
             cpAssertSoft(child == parent.A || child == parent.B, "Internal Error: Node is not a child of parent.");
         }
         if (parent.A == child) {
@@ -2304,88 +2348,97 @@
             parent.B.recycle(tree);
             parent.setB(value);
         }
-        for (/*Node **/ var node = parent; node; node = node.parent) {
-            node.bb = node.A.bb.merge(node.B.bb);
+        for (/*Node*/ var node = parent; node; node = node.parent) {
+            node.A.bb.mergeTo(node.B.bb, node.bb);
         }
     };
     //MARK: Subtree Functions
     //static inline cpFloat
-    var cpBBProximity = function(/*cpBB*/ a, /*cpBB*/ b) {
+    BB.prototype.proximity = function(/*cpBB*/ b) {
+        /*cpBB*/
+        var a = this;
         return cpfabs(a.l + a.r - b.l - b.r) + cpfabs(a.b + a.t - b.b - b.t);
     };
     //static Node *
-    var SubtreeInsert = function(/*Node **/ subtree, /*Node **/ leaf, /*cpBBTree **/ tree) {
-        if (subtree == null) {
-            return leaf;
-        } else if (subtree.isLeaf) {
-            return tree.nodeFromPool(leaf, subtree);
-        } else {
-            /*cpFloat*/
-            var cost_a = subtree.B.bb.area() + subtree.A.bb.mergedArea(leaf.bb);
-            /*cpFloat*/
-            var cost_b = subtree.A.bb.area() + subtree.B.bb.mergedArea(leaf.bb);
-            if (cost_a == cost_b) {
-                cost_a = cpBBProximity(subtree.A.bb, leaf.bb);
-                cost_b = cpBBProximity(subtree.B.bb, leaf.bb);
-            }
-            if (cost_b < cost_a) {
-                subtree.setB(SubtreeInsert(subtree.B, leaf, tree));
-            } else {
-                subtree.setA(SubtreeInsert(subtree.A, leaf, tree));
-            }
-            subtree.bb = subtree.bb.merge(leaf.bb);
-            return subtree;
+    Node.prototype.subtreeInsert = function(/*Node*/ leaf, /*cpBBTree*/ tree) {
+        /*Node*/
+        var subtree = this;
+        /*cpFloat */
+        var cost_a = subtree.B.bb.area() + subtree.A.bb.mergedArea(leaf.bb);
+        /*cpFloat */
+        var cost_b = subtree.A.bb.area() + subtree.B.bb.mergedArea(leaf.bb);
+        if (cost_a == cost_b) {
+            cost_a = subtree.A.bb.proximity(leaf.bb);
+            cost_b = subtree.B.bb.proximity(leaf.bb);
         }
+        if (cost_b < cost_a) {
+            subtree.setB(subtree.B.subtreeInsert(leaf, tree));
+        } else {
+            subtree.setA(subtree.A.subtreeInsert(leaf, tree));
+        }
+        subtree.bb.mergeTo(leaf.bb, subtree.bb);
+        return subtree;
+    };
+    Leaf.prototype.subtreeInsert = function(/*Node*/ leaf, /*cpBBTree*/ tree) {
+        return tree.nodeFromPool(leaf, this);
     };
     //static void
-    var SubtreeQuery = function(/*Node **/ subtree, /*void **/ obj, /*cpBB*/ bb, /*cpSpatialIndexQueryFunc*/ func, /*void **/ data) {
+    Node.prototype.subtreeQuery = function(/*void*/ obj, /*cpBB*/ bb, /*cpSpatialIndexQueryFunc*/ func, /*void*/ data) {
+        /*Node*/
+        var subtree = this;
         if (subtree.bb.intersects(bb)) {
-            if (subtree.isLeaf) {
-                func(obj, subtree.obj, 0, data);
-            } else {
-                SubtreeQuery(subtree.A, obj, bb, func, data);
-                SubtreeQuery(subtree.B, obj, bb, func, data);
-            }
+            subtree.A.subtreeQuery(obj, bb, func, data);
+            subtree.B.subtreeQuery(obj, bb, func, data);
+        }
+    };
+    Leaf.prototype.subtreeQuery = function(/*void*/ obj, /*cpBB*/ bb, /*cpSpatialIndexQueryFunc*/ func, /*void*/ data) {
+        /*Node*/
+        var subtree = this;
+        if (subtree.bb.intersects(bb)) {
+            func(obj, subtree.obj, 0, data);
         }
     };
     //static cpFloat
-    var SubtreeSegmentQuery = function(/*Node **/ subtree, /*void **/ obj, /*cpVect*/ a, /*cpVect*/ b, /*cpFloat*/ t_exit, /*cpSpatialIndexSegmentQueryFunc*/ func, /*void **/ data) {
-        if (subtree.isLeaf) {
-            return func(obj, subtree.obj, data);
+    Node.prototype.subtreeSegmentQuery = function(/*void*/ obj, /*cpVect*/ a, /*cpVect*/ b, /*cpFloat*/ t_exit, /*cpSpatialIndexSegmentQueryFunc*/ func, /*void*/ data) {
+        /*Node*/
+        var subtree = this;
+        /*cpFloat */
+        var t_a = subtree.A.bb.segmentQuery(a, b);
+        /*cpFloat */
+        var t_b = subtree.B.bb.segmentQuery(a, b);
+        if (t_a < t_b) {
+            if (t_a < t_exit) t_exit = cpfmin(t_exit, subtree.A.subtreeSegmentQuery(obj, a, b, t_exit, func, data));
+            if (t_b < t_exit) t_exit = cpfmin(t_exit, subtree.B.subtreeSegmentQuery(obj, a, b, t_exit, func, data));
         } else {
-            /*cpFloat*/
-            var t_a = subtree.A.bb.segmentQuery(a, b);
-            /*cpFloat*/
-            var t_b = subtree.B.bb.segmentQuery(a, b);
-            if (t_a < t_b) {
-                if (t_a < t_exit) t_exit = cpfmin(t_exit, SubtreeSegmentQuery(subtree.A, obj, a, b, t_exit, func, data));
-                if (t_b < t_exit) t_exit = cpfmin(t_exit, SubtreeSegmentQuery(subtree.B, obj, a, b, t_exit, func, data));
-            } else {
-                if (t_b < t_exit) t_exit = cpfmin(t_exit, SubtreeSegmentQuery(subtree.B, obj, a, b, t_exit, func, data));
-                if (t_a < t_exit) t_exit = cpfmin(t_exit, SubtreeSegmentQuery(subtree.A, obj, a, b, t_exit, func, data));
-            }
-            return t_exit;
+            if (t_b < t_exit) t_exit = cpfmin(t_exit, subtree.B.subtreeSegmentQuery(obj, a, b, t_exit, func, data));
+            if (t_a < t_exit) t_exit = cpfmin(t_exit, subtree.A.subtreeSegmentQuery(obj, a, b, t_exit, func, data));
         }
+        return t_exit;
+    };
+    Leaf.prototype.subtreeSegmentQuery = function(/*void*/ obj, /*cpVect*/ a, /*cpVect*/ b, /*cpFloat*/ t_exit, /*cpSpatialIndexSegmentQueryFunc*/ func, /*void*/ data) {
+        /*Node*/
+        var subtree = this;
+        return func(obj, subtree.obj, data);
     };
     //static void
-    BBTree.prototype.subtreeRecycle = function(/*Node **/ node) {
-        /*cpBBTree **/
-        var tree = this;
-        if (!node.isLeaf) {
-            tree.subtreeRecycle(node.A);
-            tree.subtreeRecycle(node.B);
-            node.recycle(tree);
-        }
-    };
+    //var SubtreeRecycle = function(/*cpBBTree*/ tree, /*Node*/ node) {
+    //	if(!node.isLeaf){
+    //		SubtreeRecycle(tree, node.A);
+    //		SubtreeRecycle(tree, node.B);
+    //        node.recycle(tree);
+    //	}
+    //};
     //static inline Node *
-    var SubtreeRemove = function(/*Node **/ subtree, /*Node **/ leaf, /*cpBBTree **/ tree) {
+    Node.prototype.subtreeRemove = Leaf.prototype.subtreeRemove = function(/*Node*/ leaf, /*cpBBTree*/ tree) {
+        /*Node*/
+        var subtree = this;
         if (leaf == subtree) {
             return null;
         } else {
-            /*Node **/
+            /*Node */
             var parent = leaf.parent;
             if (parent == subtree) {
-                /*Node **/
+                /*Node */
                 var other = subtree.other(leaf);
                 other.parent = subtree.parent;
                 subtree.recycle(tree);
@@ -2399,10 +2452,10 @@
     //MARK: Marking Functions
     ////typedef struct
     //var MarkContext = function(
-    //	/*cpBBTree **/tree,
-    //	/*Node **/staticRoot,
+    //	/*cpBBTree*/ tree,
+    //	/*Node*/ staticRoot,
     //	/*cpSpatialIndexQueryFunc*/ func,
-    //	/*void **/data
+    //	/*void*/ data
     //) {
     //    this.tree = tree;
     //    this.staticRoot = staticRoot;
@@ -2410,61 +2463,41 @@
     //    this.data = data;
     //};
     //static void
-    //var MarkLeafQuery = function(/*Node **/subtree, /*Node **/leaf, /*cpBool*/ left, /*MarkContext **/context)
-    //{
-    //	if(leaf.bb.intersects(subtree.bb)){
-    //        if(subtree.isLeaf){
-    //            if(left){
-    //				PairInsert(leaf, subtree, context.tree);
-    //			} else {
-    //				if(subtree.STAMP < leaf.STAMP) {
-    //                    PairInsert(subtree, leaf, context.tree);
-    //                }
-    //				context.func(leaf.obj, subtree.obj, 0, context.data);
-    //			}
-    //		} else {
-    //			MarkLeafQuery(subtree.A, leaf, left, context);
-    //			MarkLeafQuery(subtree.B, leaf, left, context);
-    //		}
-    //	}
-    //}
-    Node.prototype.markLeafQuery = function(/*Node **/ leaf, /*cpBool*/ left, tree, func, data) {
-        /*Node **/
+    Node.prototype.markLeafQuery = function(/*Node*/ leaf, /*cpBool*/ left, tree, staticRoot, func, data) {
+        /*Node*/
         var subtree = this;
         if (leaf.bb.intersects(subtree.bb)) {
-            subtree.A.markLeafQuery(leaf, left, tree, func, data);
-            subtree.B.markLeafQuery(leaf, left, tree, func, data);
+            subtree.A.markLeafQuery(leaf, left, tree, staticRoot, func, data);
+            subtree.B.markLeafQuery(leaf, left, tree, staticRoot, func, data);
         }
     };
-    Leaf.prototype.markLeafQuery = function(/*Node **/ leaf, /*cpBool*/ left, tree, func, data) {
-        /*Node **/
+    Leaf.prototype.markLeafQuery = function(/*Node*/ leaf, /*cpBool*/ left, tree, staticRoot, func, data) {
+        /*Node*/
         var subtree = this;
         if (leaf.bb.intersects(subtree.bb)) {
             if (left) {
-                PairInsert(leaf, subtree, tree);
+                tree.pairInsert(leaf, subtree);
             } else {
-                if (subtree.STAMP < leaf.STAMP) {
-                    PairInsert(subtree, leaf, tree);
-                }
+                if (subtree.STAMP < leaf.STAMP) tree.pairInsert(subtree, leaf);
                 func(leaf.obj, subtree.obj, 0, data);
             }
         }
     };
     //static void
-    Leaf.prototype.markSubtree = function(tree, staticRoot, func, data) {
-        /*Node **/
+    Leaf.prototype.markLeaf = function(tree, staticRoot, func, data) {
+        /*Node*/
         var leaf = this;
         if (leaf.STAMP == tree.getMasterTree().stamp) {
-            if (staticRoot) staticRoot.markLeafQuery(leaf, false, tree, func, data);
-            for (/*Node **/ var node = leaf; node.parent; node = node.parent) {
+            if (staticRoot) staticRoot.markLeafQuery(leaf, false, tree, staticRoot, func, data);
+            for (/*Node*/ var node = leaf; node.parent; node = node.parent) {
                 if (node == node.parent.A) {
-                    node.parent.B.markLeafQuery(leaf, true, tree, func, data);
+                    node.parent.B.markLeafQuery(leaf, true, tree, staticRoot, func, data);
                 } else {
-                    node.parent.A.markLeafQuery(leaf, false, tree, func, data);
+                    node.parent.A.markLeafQuery(leaf, false, tree, staticRoot, func, data);
                 }
             }
         } else {
-            /*Pair **/
+            /*Pair */
             var pair = leaf.PAIRS;
             while (pair) {
                 if (leaf == pair.bLeaf) {
@@ -2477,36 +2510,39 @@
         }
     };
     //static void
-    Node.prototype.markSubtree = function(tree, staticRoot, func, data) {
-        this.A.markSubtree(tree, staticRoot, func, data);
-        this.B.markSubtree(tree, staticRoot, func, data);
+    //var MarkSubtree = function(/*Node*/ subtree, /*MarkContext*/ context) {
+    //	if(subtree.isLeaf){
+    //		MarkLeaf(subtree, context);
+    //	} else {
+    //		MarkSubtree(subtree.A, context);
+    //		MarkSubtree(subtree.B, context); // TODO: Force TCO here?
+    //	}
+    //};
+    Node.prototype.markLeaf = function(tree, staticRoot, func, data) {
+        this.A.markLeaf(tree, staticRoot, func, data);
+        this.B.markLeaf(tree, staticRoot, func, data);
     };
+    //Leaf.prototype.markSubtree = function(context) {
+    //    this.markLeaf(context);
+    //}
     //MARK: Leaf Functions
     //static Node *
-    //var LeafNew = function(/*cpBBTree **/tree, /*void **/obj, /*cpBB*/ bb)
-    //{
-    //	/*Node **/ var node = tree.nodeFromPool();
-    //	node.obj = obj;
-    //	node.bb = tree.getBB(obj);
-    //
-    //	node.parent = null;
-    //	node.STAMP = 0;
-    //	node.PAIRS = null;
-    //
+    //var LeafNew = function(/*cpBBTree*/ tree, /*void*/ obj, /*cpBB*/ bb) {
+    //	/*Node */ var node = LeafFromPool(tree, obj);
     //	return node;
-    //}
+    //};
     //static cpBool
-    Leaf.prototype.update = function(/*cpBBTree **/ tree) {
-        /*Node **/
+    Leaf.prototype.update = function(/*cpBBTree*/ tree) {
+        /*Node*/
         var leaf = this;
-        /*Node **/
+        /*Node */
         var root = tree.root;
-        /*cpBB*/
+        /*cpBB */
         var bb = tree.bbfunc(leaf.obj);
         if (!leaf.bb.containsBB(bb)) {
             tree.getBB(leaf.obj, leaf.bb);
-            root = SubtreeRemove(root, leaf, tree);
-            tree.root = SubtreeInsert(root, leaf, tree);
+            root = root.subtreeRemove(leaf, tree);
+            tree.root = root ? root.subtreeInsert(leaf, tree) : leaf;
             leaf.pairsClear(tree);
             leaf.STAMP = tree.getMasterTree().stamp;
             return true;
@@ -2514,107 +2550,128 @@
             return false;
         }
     };
-    //static cpCollisionID
-    var VoidQueryFunc = function(/*void **/ obj1, /*void **/ obj2, /*cpCollisionID*/ id, /*void **/ data) {
+    //static cpCollisionID 
+    var VoidQueryFunc = function(/*void*/ obj1, /*void*/ obj2, /*cpCollisionID*/ id, /*void*/ data) {
         return id;
     };
     //static void
-    Leaf.prototype.addPairs = function(/*cpBBTree **/ tree) {
-        /*Node **/
+    Leaf.prototype.addPairs = function(/*cpBBTree*/ tree) {
+        /*Node*/
         var leaf = this;
-        /*cpSpatialIndex **/
+        /*cpSpatialIndex */
         var dynamicIndex = tree.dynamicIndex;
         if (dynamicIndex) {
-            /*Node **/
+            /*Node */
             var dynamicRoot = dynamicIndex.root;
             if (dynamicRoot) {
-                /*cpBBTree **/
+                /*cpBBTree */
                 var dynamicTree = dynamicIndex;
-                //			/*MarkContext*/ var context = new MarkContext(dynamicTree, null, null, null);
-                dynamicRoot.markLeafQuery(leaf, true, dynamicTree, _nothing, null);
+                //			/*MarkContext */ var context = new MarkContext(dynamicTree, null, null, null);
+                dynamicRoot.markLeafQuery(leaf, true, dynamicTree, null, null, null);
             }
         } else {
-            /*Node **/
+            /*Node */
             var staticRoot = tree.staticIndex.root;
-            //		/*MarkContext*/ var context = new MarkContext(tree, staticRoot, VoidQueryFunc, null);
-            leaf.markSubtree(tree, staticRoot, VoidQueryFunc, null);
+            //		/*MarkContext */ var context = new MarkContext(tree, staticRoot, VoidQueryFunc, null);
+            leaf.markLeaf(tree, staticRoot, VoidQueryFunc, null);
         }
     };
-    ////static int
-    //var leafSetEql = function(/*void **/obj, /*Node **/node)
+    //MARK: Memory Management Functions
+    //cpBBTree *
+    //cpBBTreeAlloc(void)
     //{
+    //	return /*(cpBBTree *)*/cpcalloc(1, sizeof(cpBBTree));
+    //}
+    //static int
+    //var leafSetEql = function(/*void*/ obj, /*Node*/ node) {
     //	return (obj == node.obj);
-    //}
-    //
-    ////static void *
-    //var leafSetTrans = function(/*void **/obj, /*cpBBTree **/tree)
-    //{
+    //};
+    //static void *
+    //var leafSetTrans = function(/*void*/ obj, /*cpBBTree*/ tree) {
     //	return LeafNew(tree, obj, tree.bbfunc(obj));
-    //}
+    //};
     //void
     BBTree.prototype.setVelocityFunc = function(/*cpBBTreeVelocityFunc*/ func) {
-        this.velocityFunc = func;
+        /*cpSpatialIndex*/
+        var index = this;
+        index.velocityFunc = func;
     };
+    //cpSpatialIndex *
+    //new cpBBTree(cpSpatialIndexBBFunc bbfunc, cpSpatialIndex *staticIndex)
+    //{
+    //	return new cpBBTree(cpBBTreeAlloc(), bbfunc, staticIndex);
+    //}
+    //static void
+    //cpBBTreeDestroy(cpBBTree *tree)
+    //{
+    //	cpHashSetFree(tree.leaves);
+    //	
+    //	if(tree.allocatedBuffers) cpArrayFreeEach(tree.allocatedBuffers, cpfree);
+    //	cpArrayFree(tree.allocatedBuffers);
+    //}
     //MARK: Insert/Remove
     //static void
-    BBTree.prototype.insert = function(/*void **/ obj, /*cpHashValue*/ hashid) {
+    BBTree.prototype.insert = function(/*void*/ obj, /*cpHashValue*/ hashid) {
+        /*cpBBTree*/
         var tree = this;
-        //	Node *leaf = (Node *)cpHashSetInsert(tree.leaves, hashid, obj, tree, (cpHashSetTransFunc)leafSetTrans);
-        /*Node **/
-        var leaf = tree.leaves[hashid] = new Leaf(tree, obj);
-        /*Node **/
-        var root = tree.root;
-        tree.root = SubtreeInsert(root, leaf, tree);
+        //	/*Node */ var leaf = /*(Node *)*/cpHashSetInsert(tree.leaves, hashid, obj, /*(cpHashSetTransFunc)*/leafSetTrans, tree);
+        var leaf = tree.leaves[hashid] = tree.leafFromPool(obj);
         tree.count++;
+        /*Node */
+        var root = tree.root;
+        tree.root = root ? root.subtreeInsert(leaf, tree) : leaf;
         leaf.STAMP = tree.getMasterTree().stamp;
         leaf.addPairs(tree);
         tree.incrementStamp();
     };
     //static void
-    BBTree.prototype.remove = function(/*void **/ obj, /*cpHashValue*/ hashid) {
+    BBTree.prototype.remove = function(/*void*/ obj, /*cpHashValue*/ hashid) {
+        /*cpBBTree*/
         var tree = this;
-        //	Node *leaf = (Node *)cpHashSetRemove(tree.leaves, hashid, obj);
-        /*Node **/
+        //	/*Node */ var leaf = /*(Node *)*/cpHashSetRemove(tree.leaves, hashid, obj);
         var leaf = tree.leaves[hashid];
         delete tree.leaves[hashid];
-        tree.root = SubtreeRemove(tree.root, leaf, tree);
         tree.count--;
+        tree.root = tree.root.subtreeRemove(leaf, tree);
         leaf.pairsClear(tree);
+        leaf.recycle(tree);
     };
     //static cpBool
-    BBTree.prototype.contains = function(/*void **/ obj, /*cpHashValue*/ hashid) {
-        return this.leaves[hashid] != null;
+    BBTree.prototype.contains = function(/*void*/ obj, /*cpHashValue*/ hashid) {
+        return this.leaves[hashid];
     };
     //MARK: Reindex
     //static void
-    BBTree.prototype.reindexQuery = function(/*cpSpatialIndexQueryFunc*/ func, /*void **/ data) {
-        /*cpBBTree **/
+    BBTree.prototype.reindexQuery = function(/*cpSpatialIndexQueryFunc*/ func, /*void*/ data) {
+        /*cpBBTree*/
         var tree = this;
         if (!tree.root) return;
         // LeafUpdate() may modify tree.root. Don't cache it.
-        //	cpHashSetEach(tree.leaves, (cpHashSetIteratorFunc)LeafUpdate, tree);
-        for (var hashid in tree.leaves) {
-            tree.leaves[hashid].update(tree);
+        var hashid, leaves = tree.leaves;
+        for (hashid in leaves) {
+            leaves[hashid].update(tree);
         }
-        /*cpSpatialIndex **/
+        //	cpHashSetEach(tree.leaves, /*(cpHashSetIteratorFunc)*/LeafUpdate, tree);
+        /*cpSpatialIndex */
         var staticIndex = tree.staticIndex;
-        /*Node **/
+        /*Node */
         var staticRoot = staticIndex && staticIndex.root;
-        //	/*MarkContext*/ var context = new MarkContext(tree, staticRoot, func, data);
-        tree.root.markSubtree(tree, staticRoot, func, data);
-        if (staticIndex && !staticRoot) tree.collideStatic(staticIndex, func, data);
+        //	/*MarkContext */ var context = new MarkContext(tree, staticRoot, func, data);
+        tree.root.markLeaf(tree, staticRoot, func, data);
+        if (staticIndex && !staticRoot) /*(cpSpatialIndex *)*/ tree.collideStatic(staticIndex, func, data);
         tree.incrementStamp();
     };
     //static void
     BBTree.prototype.reindex = function() {
-        this.reindexQuery(VoidQueryFunc, null);
+        /*cpBBTree*/
+        var tree = this;
+        tree.reindexQuery(VoidQueryFunc, null);
     };
     //static void
-    BBTree.prototype.reindexObject = function(/*void **/ obj, /*cpHashValue*/ hashid) {
-        /*cpBBTree **/
+    BBTree.prototype.reindexObject = function(/*void*/ obj, /*cpHashValue*/ hashid) {
+        /*cpBBTree*/
         var tree = this;
-        //	Node *leaf = (Node *)cpHashSetFind(tree.leaves, hashid, obj);
-        /*Node **/
+        //	/*Node */ var leaf = /*(Node *)*/cpHashSetFind(tree.leaves, hashid, obj);
         var leaf = tree.leaves[hashid];
         if (leaf) {
             if (leaf.update(tree)) leaf.addPairs(tree);
@@ -2623,48 +2680,71 @@
     };
     //MARK: Query
     //static void
-    BBTree.prototype.segmentQuery = function(/*void **/ obj, /*cpVect*/ a, /*cpVect*/ b, /*cpFloat*/ t_exit, /*cpSpatialIndexSegmentQueryFunc*/ func, /*void **/ data) {
-        /*cpBBTree **/
+    BBTree.prototype.segmentQuery = function(/*void*/ obj, /*cpVect*/ a, /*cpVect*/ b, /*cpFloat*/ t_exit, /*cpSpatialIndexSegmentQueryFunc*/ func, /*void*/ data) {
+        /*cpBBTree*/
         var tree = this;
-        /*Node **/
+        /*Node */
         var root = tree.root;
-        if (root) SubtreeSegmentQuery(root, obj, a, b, t_exit, func, data);
+        if (root) root.subtreeSegmentQuery(obj, a, b, t_exit, func, data);
     };
     //static void
-    BBTree.prototype.query = function(/*void **/ obj, /*cpBB*/ bb, /*cpSpatialIndexQueryFunc*/ func, /*void **/ data) {
-        if (this.root) SubtreeQuery(this.root, obj, bb, func, data);
+    BBTree.prototype.query = function(/*void*/ obj, /*cpBB*/ bb, /*cpSpatialIndexQueryFunc*/ func, /*void*/ data) {
+        /*cpBBTree*/
+        var tree = this;
+        if (tree.root) tree.root.subtreeQuery(obj, bb, func, data);
     };
     //MARK: Misc
     //static int
-    //BBTree.prototype.count = function()
-    //{
-    //    return this.count;
-    //}
-    //typedef struct
+    BBTree.prototype.count = function() {
+        return this.count;
+    };
+    ////typedef struct
     //var eachContext = function(
     //	/*cpSpatialIndexIteratorFunc*/ func,
-    //	/*void **/data
+    //	/*void*/ data
     //) {
     //    this.func = func;
     //    this.data = data;
     //};
+    //static void 
+    //var each_helper = function(/*Node*/ node, /*eachContext*/ context) {context.func(node.obj, context.data);};
     //static void
-    //var each_helper = function(/*Node **/node, /*eachContext **/context){context.func(node.obj, context.data);}
-    //static void
-    BBTree.prototype.each = function(/*cpSpatialIndexIteratorFunc*/ func, /*void **/ data) {
-        /*cpBBTree **/
+    BBTree.prototype.each = function(/*cpSpatialIndexIteratorFunc*/ func, /*void*/ data) {
+        /*cpBBTree*/
         var tree = this;
-        //    /*eachContext*/ var context = new eachContext(func, data);
-        //    cpHashSetEach(tree.leaves, (cpHashSetIteratorFunc)each_helper, &context);
-        for (var hashid in tree.leaves) {
-            //        each_helper(tree.leaves[hashid], context)
-            func(tree.leaves[hashid].obj, data);
+        //	/*eachContext */ var context = new eachContext(func, data);
+        //	cpHashSetEach(tree.leaves, /*(cpHashSetIteratorFunc)*/each_helper, context);
+        var hashid, leaves = tree.leaves;
+        for (hashid in leaves) {
+            func(leaves[hashid].obj, data);
         }
     };
+    //static cpSpatialIndexClass klass = {
+    //	/*(cpSpatialIndexDestroyImpl)*/cpBBTreeDestroy,
+    //	
+    //	/*(cpSpatialIndexCountImpl)*/cpBBTreeCount,
+    //	/*(cpSpatialIndexEachImpl)*/cpBBTreeEach,
+    //	
+    //	/*(cpSpatialIndexContainsImpl)*/cpBBTreeContains,
+    //	/*(cpSpatialIndexInsertImpl)*/cpBBTreeInsert,
+    //	/*(cpSpatialIndexRemoveImpl)*/cpBBTreeRemove,
+    //	
+    //	/*(cpSpatialIndexReindexImpl)*/cpBBTreeReindex,
+    //	/*(cpSpatialIndexReindexObjectImpl)*/cpBBTreeReindexObject,
+    //	/*(cpSpatialIndexReindexQueryImpl)*/cpBBTreeReindexQuery,
+    //	
+    //	/*(cpSpatialIndexQueryImpl)*/cpBBTreeQuery,
+    //	/*(cpSpatialIndexSegmentQueryImpl)*/cpBBTreeSegmentQuery,
+    //};
     //MARK: Tree Optimization
     //static int
-    //var cpfcompare = function(/*const cpFloat **/a, /*const cpFloat **/b){
-    //	return (a < b ? -1 : (b < a ? 1 : 0));
+    //cpfcompare(const cpFloat *a, const cpFloat *b){
+    //	return (*a < *b ? -1 : (*b < *a ? 1 : 0));
+    //}
+    //static void
+    //fillNodeArray(Node *node, Node ***cursor){
+    //	(**cursor) = node;
+    //	(*cursor)++;
     //}
     //static Node *
     //partitionNodes(cpBBTree *tree, Node **nodes, int count)
@@ -2674,28 +2754,28 @@
     //	} else if(count == 2) {
     //		return NodeNew(tree, nodes[0], nodes[1]);
     //	}
-    //
+    //	
     //	// Find the AABB for these nodes
     //	cpBB bb = nodes[0].bb;
-    //	for(int i=1; i<count; i++) bb = cpBBMerge(bb, nodes[i].bb);
-    //
+    //	for(/*int*/ var i =1; i<count; i++) bb = bb.merge(nodes[i].bb);
+    //	
     //	// Split it on it's longest axis
     //	cpBool splitWidth = (bb.r - bb.l > bb.t - bb.b);
-    //
+    //	
     //	// Sort the bounds and use the median as the splitting point
-    //	cpFloat *bounds = (cpFloat *)cpcalloc(count*2, sizeof(cpFloat));
+    //	cpFloat *bounds = /*(cpFloat *)*/cpcalloc(count*2, sizeof(cpFloat));
     //	if(splitWidth){
-    //		for(int i=0; i<count; i++){
+    //		for(/*int*/ var i =0; i<count; i++){
     //			bounds[2*i + 0] = nodes[i].bb.l;
     //			bounds[2*i + 1] = nodes[i].bb.r;
     //		}
     //	} else {
-    //		for(int i=0; i<count; i++){
+    //		for(/*int*/ var i =0; i<count; i++){
     //			bounds[2*i + 0] = nodes[i].bb.b;
     //			bounds[2*i + 1] = nodes[i].bb.t;
     //		}
     //	}
-    //
+    //	
     //	qsort(bounds, count*2, sizeof(cpFloat), (int (*)(const void *, const void *))cpfcompare);
     //	cpFloat split = (bounds[count - 1] + bounds[count])*0.5; // use the medain as the split
     //	cpfree(bounds);
@@ -2703,13 +2783,13 @@
     //	// Generate the child BBs
     //	cpBB a = bb, b = bb;
     //	if(splitWidth) a.r = b.l = split; else a.t = b.b = split;
-    //
+    //	
     //	// Partition the nodes
     //	int right = count;
-    //	for(int left=0; left < right;){
+    //	for(/*int*/ var left =0; left < right;){
     //		Node *node = nodes[left];
-    //		if(cpBBMergedArea(node.bb, b) < cpBBMergedArea(node.bb, a)){
-    ////		if(cpBBProximity(node.bb, b) < cpBBProximity(node.bb, a)){
+    //		if(node.bb.mergedArea(b) < node.bb.mergedArea(a)){
+    ////		if(node.bb.proximity(b) < node.bb.proximity(a)){
     //			right--;
     //			nodes[left] = nodes[right];
     //			nodes[right] = node;
@@ -2717,81 +2797,77 @@
     //			left++;
     //		}
     //	}
-    //
+    //	
     //	if(right == count){
     //		Node *node = null;
-    //		for(int i=0; i<count; i++) node = SubtreeInsert(node, nodes[i], tree);
+    //		for(/*int*/ var i =0; i<count; i++) node = SubtreeInsert(node, nodes[i], tree);
     //		return node;
     //	}
-    //
+    //	
     //	// Recurse and build the node!
     //	return NodeNew(tree,
     //		partitionNodes(tree, nodes, right),
     //		partitionNodes(tree, nodes + right, count - right)
     //	);
     //}
-    //
-    ////static void
-    ////cpBBTreeOptimizeIncremental(cpBBTree *tree, int passes)
-    ////{
-    ////	for(int i=0; i<passes; i++){
-    ////		Node *root = tree.root;
-    ////		Node *node = root;
-    ////		int bit = 0;
-    ////		unsigned int path = tree.opath;
-    ////
-    ////		while(!NodeIsLeaf(node)){
-    ////			node = (path&(1<<bit) ? node.a : node.b);
-    ////			bit = (bit + 1)&(sizeof(unsigned int)*8 - 1);
-    ////		}
-    ////
-    ////		root = subtreeRemove(root, node, tree);
-    ////		tree.root = subtreeInsert(root, node, tree);
-    ////	}
-    ////}
-    //
+    //static void
+    //cpBBTreeOptimizeIncremental(cpBBTree *tree, int passes)
+    //{
+    //	for(/*int*/ var i =0; i<passes; i++){
+    //		Node *root = tree.root;
+    //		Node *node = root;
+    //		int bit = 0;
+    //		unsigned int path = tree.opath;
+    //		
+    //		while(!NodeIsLeaf(node)){
+    //			node = (path&(1<<bit) ? node.a : node.b);
+    //			bit = (bit + 1)&(sizeof(unsigned int)*8 - 1);
+    //		}
+    //		
+    //		root = subtreeRemove(root, node, tree);
+    //		tree.root = subtreeInsert(root, node, tree);
+    //	}
+    //}
     //void
     //cpBBTreeOptimize(cpSpatialIndex *index)
     //{
-    //	if(index.klass != &klass){
+    //	if(index != &klass){
     //		cpAssertWarn(false, "Ignoring cpBBTreeOptimize() call to non-tree spatial index.");
     //		return;
     //	}
-    //
-    //	cpBBTree *tree = (cpBBTree *)index;
+    //	
+    //	cpBBTree *tree = /*(cpBBTree *)*/index;
     //	Node *root = tree.root;
     //	if(!root) return;
-    //
-    //	int count = cpBBTreeCount(tree);
+    //	
+    //	int count = tree.count();
     //	Node **nodes = (Node **)cpcalloc(count, sizeof(Node *));
     //	Node **cursor = nodes;
-    //
-    //	cpHashSetEach(tree.leaves, (cpHashSetIteratorFunc)fillNodeArray, &cursor);
-    //
+    //	
+    //	cpHashSetEach(tree.leaves, /*(cpHashSetIteratorFunc)*/fillNodeArray, &cursor);
+    //	
     //	SubtreeRecycle(tree, root);
     //	tree.root = partitionNodes(tree, nodes, count);
     //	cpfree(nodes);
     //}
+    //MARK: Debug Draw
+    //#define CP_BBTREE_DEBUG_DRAW
+    //if ('undefined' != typeof CP_BBTREE_DEBUG_DRAW) {
+    ////#include "OpenGL/gl.h"
+    ////#include "OpenGL/glu.h"
+    ////#include <GLUT/glut.h>
     //
-    ////MARK: Debug Draw
+    ////static void
     //
-    ////#define CP_BBTREE_DEBUG_DRAW
-    //#ifdef CP_BBTREE_DEBUG_DRAW
-    //#include "OpenGL/gl.h"
-    //#include "OpenGL/glu.h"
-    //#include <GLUT/glut.h>
-    //
-    //static void
-    //NodeRender(Node *node, int depth)
-    //{
+    //var NodeRender = function(/*Node*/ node, /*int*/ depth) {
     //	if(!NodeIsLeaf(node) && depth <= 10){
     //		NodeRender(node.a, depth + 1);
     //		NodeRender(node.b, depth + 1);
     //	}
     //
-    //	cpBB bb = node.bb;
+    //	/*cpBB */ var bb = node.bb;
     //
-    ////	GLfloat v = depth/2.0;
+    ////	/*GLfloat */ var v = depth/2.0;
     ////	glColor3f(1.0 - v, v, 0.0);
     //	glLineWidth(cpfmax(5.0 - depth, 1.0));
     //	glBegin(GL_LINES); {
@@ -2807,19 +2883,22 @@
     //		glVertex2f(bb.r, bb.b);
     //		glVertex2f(bb.l, bb.b);
     //	}; glEnd();
-    //}
+    //};
     //
-    //void
-    //cpBBTreeRenderDebug(cpSpatialIndex *index){
-    //	if(index.klass != &klass){
+    ////void
+    //
+    //cpBBTree.prototype.renderDebug = function() {
+    //    /*cpSpatialIndex*/ var index = this;
+    //
+    //	if(index != klass){
     //		cpAssertWarn(false, "Ignoring cpBBTreeRenderDebug() call to non-tree spatial index.");
     //		return;
     //	}
     //
-    //	cpBBTree *tree = (cpBBTree *)index;
+    //	/*cpBBTree */ var tree = /*(cpBBTree *)*/index;
     //	if(tree.root) NodeRender(tree.root, 0);
+    //};
     //}
-    //#endif
     var cpBodyIDCounter = 0;
     //cpBody *
     var Body = cp.Body = function(/*cpFloat*/ m, /*cpFloat*/ i) {
@@ -2827,30 +2906,32 @@
         body.hashid = cpBodyIDCounter++;
         body.p = new Vect(0, 0);
         body.v = new Vect(0, 0);
-        body.f = new Vect(0, 0);
-        body.v_bias = new Vect(0, 0);
+        //    body.f = new Vect(0, 0);
+        //    body.v_bias = new Vect(0, 0);
         //    this.rot = cpvforangle(0.0)
         this.rot = new Vect(1, 0);
         // Setters must be called after full initialization so the sanity checks don't assert on garbage data.
         body.setMass(m);
         body.setMoment(i);
     };
-    Body.prototype = {
-        space: null,
-        shapeList: null,
-        arbiterList: null,
-        constraintList: null,
-        nodeRoot: null,
-        nodeNext: null,
-        nodeIdleTime: 0,
-        w: 0,
-        t: 0,
-        w_bias: 0,
-        v_limit: Infinity,
-        w_limit: Infinity,
-        data: null,
-        a: 0
-    };
+    //Body.prototype.space = null;
+    //Body.prototype.shapeList = null;
+    //Body.prototype.arbiterList = null;
+    //Body.prototype.constraintList = null;
+    //Body.prototype.nodeRoot = null;
+    //Body.prototype.nodeNext = null;
+    Body.prototype.nodeIdleTime = 0;
+    Body.prototype.w = 0;
+    Body.prototype.t = 0;
+    Body.prototype.w_bias = 0;
+    Body.prototype.v_limit = Infinity;
+    Body.prototype.w_limit = Infinity;
+    Body.prototype.fx = 0;
+    Body.prototype.fy = 0;
+    Body.prototype.v_biasx = 0;
+    Body.prototype.v_biasy = 0;
+    Body.prototype.a = 0;
+    //Body.prototype.data = null;
     Body.prototype.getPos = function() {
         return this.p;
     };
@@ -2901,7 +2982,8 @@
             cpAssertSoft(body.i == body.i && body.i_inv == body.i_inv, "Body's moment is invalid.");
             cpv_assert_sane(body.p, "Body's position is invalid.");
             cpv_assert_sane(body.v, "Body's velocity is invalid.");
-            cpv_assert_sane(body.f, "Body's force is invalid.");
+            cpv_assert_sane(body.fx, "Body's force is invalid.");
+            cpv_assert_sane(body.fy, "Body's force is invalid.");
             cpAssertSoft(body.a == body.a && cpfabs(body.a) != Infinity, "Body's angle is invalid.");
             cpAssertSoft(body.w == body.w && cpfabs(body.w) != Infinity, "Body's angular velocity is invalid.");
             cpAssertSoft(body.t == body.t && cpfabs(body.t) != Infinity, "Body's torque is invalid.");
@@ -3007,13 +3089,13 @@
         var body = this;
         var v = body.v;
         //	body.v = cpvclamp(cpvadd(cpvmult(body.v, damping), cpvmult(cpvadd(gravity, cpvmult(body.f, body.m_inv)), dt)), body.v_limit);
-        v.x = v.x * damping + (gravity.x + body.f.x * body.m_inv) * dt;
-        v.y = body.v.y * damping + (gravity.y + body.f.y * body.m_inv) * dt;
+        v.x = v.x * damping + (gravity.x + body.fx * body.m_inv) * dt;
+        v.y = v.y * damping + (gravity.y + body.fy * body.m_inv) * dt;
         var v_limit = body.v_limit;
         if (v_limit < Infinity) {
             var vlenSq = v.x * v.x + v.y * v.y;
             if (vlenSq > v_limit * v_limit) {
-                var f = cpfsqrt(vlenSq) + CPFLOAT_MIN;
+                var f = cpfsqrt(vlenSq);
                 v.x *= v_limit / f;
                 v.y *= v_limit / f;
             }
@@ -3029,11 +3111,11 @@
     Body.prototype.updatePosition = function(/*cpFloat*/ dt) {
         var body = this;
         //	body.p = cpvadd(body.p, cpvmult(cpvadd(body.v, body.v_bias), dt));
-        body.p.x += (body.v.x + body.v_bias.x) * dt;
-        body.p.y += (body.v.y + body.v_bias.y) * dt;
+        body.p.x += (body.v.x + body.v_biasx) * dt;
+        body.p.y += (body.v.y + body.v_biasy) * dt;
         setAngle(body, body.a + (body.w + body.w_bias) * dt);
         //	body.v_bias = cpv(0, 0);
-        body.v_bias.x = body.v_bias.y = 0;
+        body.v_biasx = body.v_biasy = 0;
         body.w_bias = 0;
         if (NDEBUG) {
             BodySanityCheck(body);
@@ -3043,15 +3125,15 @@
     Body.prototype.resetForces = function() {
         var body = this;
         body.activate();
-        body.f.x = body.f.y = 0;
+        body.fx = body.fy = 0;
         body.t = 0;
     };
     //void
     Body.prototype.applyForce = function(/*cpVect*/ force, /*cpVect*/ r) {
         var body = this;
         body.activate();
-        body.f.x += force.x;
-        body.f.y += force.y;
+        body.fx += force.x;
+        body.fy += force.y;
         //	body.f = cpvadd(body.f, force);
         body.t += cpvcross(r, force);
     };
@@ -3140,7 +3222,7 @@
             var dist = cpfsqrt(distsq);
             /*cpVect*/
             var n = dist ? new Vect(deltaX / dist, deltaY / dist) : new Vect(1, 0);
-            return new Contact(cpvlerp(p1, p2, r1 / (r1 + r2)), n, dist - mindist, hash);
+            return new Contact(cpvlerp(p1, p2, r1 / mindist), n, dist - mindist, hash);
         }
     };
     //MARK: Support Points and Edges:
@@ -3227,18 +3309,18 @@
     //static struct Edge
     var SupportEdgeForPoly = function(/*const cpPolyShape **/ poly, /*const cpVect*/ n) {
         /*int*/
-        var numVerts = poly.verts.length;
+        var verts = poly.tVerts;
+        var numVerts = verts.length;
         /*int*/
-        var i1 = PolySupportPointIndex(poly.tVerts, n);
+        var i1 = PolySupportPointIndex(verts, n);
         // TODO get rid of mod eventually, very expensive on ARM
-        /*int*/
-        var i0 = (i1 - 1 + numVerts) % numVerts;
         /*int*/
         var i2 = (i1 + 1) % numVerts;
         /*cpVect **/
-        var verts = poly.tVerts;
         var planes = poly.tPlanes;
         if (cpvdot(n, planes[i1].n) > cpvdot(n, planes[i2].n)) {
+            /*int*/
+            var i0 = (i1 - 1 + numVerts) % numVerts;
             /*struct Edge*/
             var edge = new Edge(new EdgePoint(verts[i0], CP_HASH_PAIR(poly.hashid, i0)), new EdgePoint(verts[i1], CP_HASH_PAIR(poly.hashid, i1)), poly.r, planes[i1].n);
             return edge;
@@ -3338,8 +3420,9 @@
         // TODO: precalculate this when building the hull and save a step.
         for (/*int*/ var j = 0, i = count - 1; j < count; i = j, j++) {
             /*cpFloat*/
-            var d = ClosestDist(hull[i].ab, hull[j].ab);
-            if (d < minDist) {
+            //        var d = ClosestDist(hull[i].ab, hull[j].ab);
+            var d;
+            if ((d = cpvlengthsq(LerpT(hull[i].ab, hull[j].ab, ClosestT(hull[i].ab, hull[j].ab)))) < minDist) {
                 minDist = d;
                 mini = i;
             }
@@ -3376,8 +3459,8 @@
             var count2 = 1;
             //		struct MinkowskiPoint *hull2 = (struct MinkowskiPoint *)alloca((count + 1)*sizeof(struct MinkowskiPoint));
             /*struct MinkowskiPoint **/
-            var hull2 = new Array(count + 1);
-            hull2[0] = p;
+            var hull2 = [ p ];
+            //        hull2[0] = p;
             for (/*int*/ var i = 0; i < count; i++) {
                 /*int*/
                 var index = (mini + 1 + i) % count;
@@ -3455,7 +3538,8 @@
                     cpAssertWarn(iteration < WARN_GJK_ITERATIONS, "High GJK.EPA iterations: " + iteration);
                 }
                 // The triangle v0, p, v1 contains the origin. Use EPA to find the MSA.
-                return EPA(ctx, v0, p, v1);
+                //            return EPA(ctx, v0, p, v1);
+                return EPARecurse(ctx, 3, [ v0, p, v1 ], 1);
             } else {
                 // The new point must be farther along the normal than the existing points.
                 var nx = n.x;
@@ -3467,7 +3551,11 @@
                     }
                     return new ClosestPoints(v0, v1);
                 } else {
-                    if (ClosestDist(v0.ab, p.ab) < ClosestDist(p.ab, v1.ab)) {
+                    //                if (ClosestDist(v0.ab, p.ab) < ClosestDist(p.ab, v1.ab)) {
+                    var v0ab = v0.ab;
+                    var v1ab = v1.ab;
+                    var pab = p.ab;
+                    if (cpvlengthsq(LerpT(v0ab, pab, ClosestT(v0ab, pab))) < cpvlengthsq(LerpT(pab, v1ab, ClosestT(pab, v1ab)))) {
                         return GJKRecurse(ctx, v0, p, iteration + 1);
                     } else {
                         return GJKRecurse(ctx, p, v1, iteration + 1);
@@ -3540,8 +3628,8 @@
         } else {
             /*cpVect*/
             //        var axis = cpvperp(cpvsub(ctx.shape1.bb.center(), ctx.shape2.bb.center()));
-            var bb1Center = ctx.shape1.bb.center();
-            var bb2Center = ctx.shape2.bb.center();
+            var bb1Center = ctx.shape1.bbCenter;
+            var bb2Center = ctx.shape2.bbCenter;
             var axisY = bb1Center.x - bb2Center.x;
             var axisX = -bb1Center.y + bb2Center.y;
             v0 = Support(ctx, new Vect(axisX, axisY));
@@ -3691,7 +3779,7 @@
         if (points.d <= mindist) {
             /*cpFloat*/
             var pick = cpvdot(e1.n, points.n) + cpvdot(e2.n, points.n);
-            if (pick != 0 && pick > 0 || // If the edges are both perfectly aligned weird things happen.
+            if (pick > 0 || // If the edges are both perfectly aligned weird things happen.
             // This is *very* common at the start of a simulation.
             // Pick the longest edge as the reference to break the tie.
             pick == 0 && cpvdistsq(e1.a.p, e1.b.p) > cpvdistsq(e2.a.p, e2.b.p)) {
@@ -3737,8 +3825,11 @@
         if (con = CircleToCircleQuery(center, closest, circleShape.r, segmentShape.r, 0)) {
             /*cpVect*/
             var n = con.n;
+            var a_tangent = segmentShape.a_tangent;
+            var b_tangent = segmentShape.b_tangent;
+            var rot = segmentShape.body.rot;
             // Reject endcap collisions if tangents are provided.
-            if ((closest_t != 0 || segmentShape.a_tangent.x == 0 && segmentShape.a_tangent.y == 0 || cpvdot(n, cpvrotate(segmentShape.a_tangent, segmentShape.body.rot)) >= 0) && (closest_t != 1 || segmentShape.b_tangent.x == 0 && segmentShape.b_tangent.y == 0 || cpvdot(n, cpvrotate(segmentShape.b_tangent, segmentShape.body.rot)) >= 0)) {
+            if ((closest_t != 0 || a_tangent.x == 0 && a_tangent.y == 0 || cpvdot(n, cpvrotate(a_tangent, rot)) >= 0) && (closest_t != 1 || b_tangent.x == 0 && b_tangent.y == 0 || cpvdot(n, cpvrotate(b_tangent, rot)) >= 0)) {
                 arr.push(con);
                 return 1;
             }
@@ -4044,6 +4135,7 @@
         bb.b = y - r;
         bb.r = x + r;
         bb.t = y + r;
+        circle.bbCenter = circle.tc;
         return bb;
     };
     //static void
@@ -4076,6 +4168,9 @@
         seg.r = r;
         seg.a_tangent = new Vect(0, 0);
         seg.b_tangent = new Vect(0, 0);
+        seg.ta = new Vect(0, 0);
+        seg.tb = new Vect(0, 0);
+        seg.tn = new Vect(0, 0);
         Shape.apply(this, arguments);
     };
     _extend(Shape, SegmentShape);
@@ -4083,23 +4178,39 @@
     //static cpBB
     SegmentShape.prototype.cacheData = function(/*cpVect*/ p, /*cpVect*/ rot) {
         var seg = this;
-        seg.ta = cpvadd(p, cpvrotate(seg.a, rot));
-        seg.tb = cpvadd(p, cpvrotate(seg.b, rot));
-        seg.tn = cpvrotate(seg.n, rot);
+        //    seg.ta = cpvadd(p, cpvrotate(seg.a, rot));
+        //    seg.tb = cpvadd(p, cpvrotate(seg.b, rot));
+        var px = p.x;
+        var py = p.y;
+        var rotx = rot.x;
+        var roty = rot.y;
+        var ax = seg.a.x;
+        var ay = seg.a.y;
+        var bx = seg.b.x;
+        var by = seg.b.y;
+        var tax = seg.ta.x = px + ax * rotx - ay * roty;
+        var tay = seg.ta.y = py + ax * roty + ay * rotx;
+        var tbx = seg.tb.x = px + bx * rotx - by * roty;
+        var tby = seg.tb.y = py + bx * roty + by * rotx;
+        //    seg.tn = cpvrotate(seg.n, rot);
+        var nx = seg.n.x;
+        var ny = seg.n.y;
+        seg.tn.x = nx * rotx - ny * roty;
+        seg.tn.y = nx * roty + ny * rotx;
         var l, r, b, t;
-        if (seg.ta.x < seg.tb.x) {
-            l = seg.ta.x;
-            r = seg.tb.x;
+        if (tax < tbx) {
+            l = tax;
+            r = tbx;
         } else {
-            l = seg.tb.x;
-            r = seg.ta.x;
+            l = tbx;
+            r = tax;
         }
-        if (seg.ta.y < seg.tb.y) {
-            b = seg.ta.y;
-            t = seg.tb.y;
+        if (tay < tby) {
+            b = tay;
+            t = tby;
         } else {
-            b = seg.tb.y;
-            t = seg.ta.y;
+            b = tby;
+            t = tay;
         }
         /*cpFloat*/
         var rad = seg.r;
@@ -4108,6 +4219,7 @@
         bb.b = b - rad;
         bb.r = r + rad;
         bb.t = t + rad;
+        seg.bbCenter = bb.center();
         return bb;
     };
     //cpNearestPointQueryInfo
@@ -4207,9 +4319,9 @@
     PolyShape.prototype.transformVerts = function(/*cpVect*/ p, /*cpVect*/ rot) {
         var poly = this;
         /*cpVect*/
-        var src = poly.verts;
+        var verts = poly.verts;
         /*cpVect*/
-        var dst = poly.tVerts;
+        var tVerts = poly.tVerts;
         /*cpFloat*/
         var l = Infinity, r = -Infinity;
         /*cpFloat*/
@@ -4218,12 +4330,14 @@
         var py = p.y;
         var rotx = rot.x;
         var roty = rot.y;
-        for (var i = 0; i < src.length; i++) {
+        for (var i = 0; i < verts.length; i++) {
             /*cpVect*/
             //        var v = cpvadd(p, cpvrotate(src[i], rot));
-            var vx = px + src[i].x * rotx - src[i].y * roty;
-            var vy = py + src[i].x * roty + src[i].y * rotx;
-            dst[i] = new Vect(vx, vy);
+            var vx = px + verts[i].x * rotx - verts[i].y * roty;
+            var vy = py + verts[i].x * roty + verts[i].y * rotx;
+            //        dst[i] = new Vect(vx, vy);
+            tVerts[i].x = vx;
+            tVerts[i].y = vy;
             l = cpfmin(l, vx);
             r = cpfmax(r, vx);
             b = cpfmin(b, vy);
@@ -4236,29 +4350,31 @@
         bb.b = b - radius;
         bb.r = r + radius;
         bb.t = t + radius;
+        poly.bbCenter = bb.center();
+        return bb;
     };
     //static void
     PolyShape.prototype.transformAxes = function(/*cpVect*/ p, /*cpVect*/ rot) {
         var poly = this;
         /*cpSplittingPlane*/
-        var src = poly.planes;
+        var planes = poly.planes;
         /*cpSplittingPlane*/
-        var dst = poly.tPlanes;
+        var tPlanes = poly.tPlanes;
         var rotx = rot.x;
         var roty = rot.y;
         var px = p.x;
         var py = p.y;
-        for (var i = 0; i < src.length; i++) {
+        for (var i = 0; i < planes.length; i++) {
             /*cpVect*/
             //        var n = cpvrotate(src[i].n, rot);
-            var n = src[i].n;
+            var n = planes[i].n;
             var nx = n.x * rotx - n.y * roty;
             var ny = n.x * roty + n.y * rotx;
             //        dst[i].n = n;
-            dst[i].n.x = nx;
-            dst[i].n.y = ny;
+            tPlanes[i].n.x = nx;
+            tPlanes[i].n.y = ny;
             //        dst[i].d = cpvdot(p, n) + src[i].d;
-            dst[i].d = px * nx + py * ny + src[i].d;
+            tPlanes[i].d = px * nx + py * ny + planes[i].d;
         }
     };
     //static cpBB
@@ -4404,6 +4520,7 @@
         var numVerts = verts.length;
         for (var i = 0; i < numVerts; i++) {
             poly.verts[i] = cpvadd(offset, verts[i]);
+            poly.tVerts[i] = new Vect(0, 0);
         }
         // TODO: Why did I add this? It duplicates work from above.
         for (/*int*/ i = 0; i < verts.length; i++) {
@@ -4462,7 +4579,12 @@
     };
     var cpDefaultCollisionHandler = new cpCollisionHandler(0, 0, alwaysCollide, alwaysCollide, _nothing, _nothing, null);
     //cpSpace*
+    var done = false;
     var Space = cp.Space = function() {
+        if (NDEBUG && !done) {
+            cpAssertWarn(false, "Initializing cpSpace - Chipmunk v" + cp.versionString + " (Debug Enabled)\n" + "use cp.min.js to disable debug mode and runtime assertion checks");
+            done = true;
+        }
         var space = this;
         space.iterations = 10;
         space.gravity = cpvzero;
@@ -5397,8 +5519,7 @@
     //MARK: Locking Functions
     //void
     Space.prototype.lock = function() {
-        var space = this;
-        space.locked++;
+        this.locked++;
     };
     //void
     Space.prototype.unlock = function(/*cpBool*/ runPostStep) {
@@ -5413,7 +5534,7 @@
             while (waking = rousedBodies.pop()) {
                 space.activateBody(/*cpBody*/ waking);
             }
-            if (space.locked == 0 && runPostStep && !space.skipPostStep) {
+            if (runPostStep && !space.skipPostStep) {
                 space.skipPostStep = true;
                 /*cpArray*/
                 var arr = space.postStepCallbacks;
@@ -5425,7 +5546,7 @@
                     var func = callback.func;
                     // Mark the func as null in case calling it calls cpSpaceRunPostStepCallbacks() again.
                     // TODO need more tests around this case I think.
-                    callback.func = null;
+                    //                callback.func = null;
                     if (func) func(space, callback.key, callback.data);
                 }
                 space.skipPostStep = false;
@@ -5451,7 +5572,7 @@
         if (sensor && handler == cpDefaultCollisionHandler) return id;
         // Shape 'a' should have the lower shape type. (required by cpCollideShapes() )
         // TODO remove me: a < b comparison is for debugging collisions
-        if (a.type > b.type || a.type == b.type && a < b) {
+        if (a.type > b.type) {
             /*cpShape*/
             var temp = a;
             a = b;
@@ -5510,8 +5631,6 @@
     //cpBool
     Space.prototype.arbiterSetFilter = function(arb) {
         var space = this;
-        /*cpTimestamp*/
-        var ticks = space.stamp - arb.stamp;
         /*cpBody*/
         var a = arb.body_a, b = arb.body_b;
         // TODO should make an arbiter state for this so it doesn't require filtering arbiters for dangling body pointers on body removal.
@@ -5520,6 +5639,8 @@
         if ((a.isStatic() || a.isSleeping()) && (b.isStatic() || b.isSleeping())) {
             return true;
         }
+        /*cpTimestamp*/
+        var ticks = space.stamp - arb.stamp;
         // Arbiter was used last frame, but not this one
         if (ticks >= 1 && arb.state != cpArbiterStateCached) {
             arb.state = cpArbiterStateCached;
@@ -5566,10 +5687,8 @@
         space.lock();
         {
             // Integrate positions
-            for (var i = 0; i < bodies.length; i++) {
-                /*cpBody*/
-                var body = /*cpBody*/ bodies[i];
-                body.updatePosition(dt);
+            for (var i = 0, len = bodies.length; i < len; i++) {
+                bodies[i].updatePosition(dt);
             }
             // Find colliding pairs.
             //		space.pushFreshContactBuffer();
@@ -5610,7 +5729,7 @@
             var damping = cpfpow(space.damping, dt);
             /*cpVect*/
             var gravity = space.gravity;
-            for (var i = 0; i < bodies.length; i++) {
+            for (var i = 0, len = bodies.length; i < len; i++) {
                 bodies[i].updateVelocity(gravity, damping, dt);
             }
             // Apply cached impulses
@@ -5850,7 +5969,9 @@
     };
     //static inline void
     var apply_bias_impulse = function(/*cpBody*/ body, /*cpVect*/ j, /*cpVect*/ r) {
-        body.v_bias = cpvadd(body.v_bias, cpvmult(j, body.m_inv));
+        //	body.v_bias = cpvadd(body.v_bias, cpvmult(j, body.m_inv));
+        body.v_biasx += j.x * body.m_inv;
+        body.v_biasy += j.y * body.m_inv;
         body.w_bias += body.i_inv * cpvcross(r, j);
     };
     //static inline void

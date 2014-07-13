@@ -25,7 +25,7 @@ var CircleToCircleQuery = function (/*const cpVect*/ p1, /*const cpVect*/ p2, /*
         var dist = cpfsqrt(distsq);
         /*cpVect*/
         var n = (dist ? new Vect(deltaX / dist, deltaY / dist) : new Vect(1.0, 0.0));
-        return new Contact(cpvlerp(p1, p2, r1 / (r1 + r2)), n, dist - mindist, hash);
+        return new Contact(cpvlerp(p1, p2, r1 / mindist), n, dist - mindist, hash);
     }
 }
 
@@ -126,21 +126,21 @@ var Edge = function (/*struct EdgePoint*/ a, b, /*cpFloat*/ r, /*cpVect*/ n) {
 //static struct Edge
 var SupportEdgeForPoly = function (/*const cpPolyShape **/poly, /*const cpVect*/ n) {
     /*int*/
-    var numVerts = poly.verts.length;
+    var verts = poly.tVerts;
+    var numVerts = verts.length;
     /*int*/
-    var i1 = PolySupportPointIndex(poly.tVerts, n);
+    var i1 = PolySupportPointIndex(verts, n);
 
     // TODO get rid of mod eventually, very expensive on ARM
-    /*int*/
-    var i0 = (i1 - 1 + numVerts) % numVerts;
     /*int*/
     var i2 = (i1 + 1) % numVerts;
 
     /*cpVect **/
-    var verts = poly.tVerts;
     var planes = poly.tPlanes;
 
     if (cpvdot(n, planes[i1].n) > cpvdot(n, planes[i2].n)) {
+        /*int*/
+        var i0 = (i1 - 1 + numVerts) % numVerts;
         /*struct Edge*/
         var edge = new Edge(new EdgePoint(verts[i0], CP_HASH_PAIR(poly.hashid, i0)), new EdgePoint(verts[i1], CP_HASH_PAIR(poly.hashid, i1)), poly.r, planes[i1].n);
         return edge;
@@ -255,8 +255,9 @@ var EPARecurse = function (/*const struct SupportContext **/ctx, /*const int*/ c
     // TODO: precalculate this when building the hull and save a step.
     for (/*int*/ var j = 0, i = count - 1; j < count; i = j, j++) {
         /*cpFloat*/
-        var d = ClosestDist(hull[i].ab, hull[j].ab);
-        if (d < minDist) {
+//        var d = ClosestDist(hull[i].ab, hull[j].ab);
+        var d;
+        if ((d = cpvlengthsq(LerpT(hull[i].ab, hull[j].ab, ClosestT(hull[i].ab, hull[j].ab)))) < minDist) {
             minDist = d;
             mini = i;
         }
@@ -298,8 +299,8 @@ var EPARecurse = function (/*const struct SupportContext **/ctx, /*const int*/ c
         var count2 = 1;
 //		struct MinkowskiPoint *hull2 = (struct MinkowskiPoint *)alloca((count + 1)*sizeof(struct MinkowskiPoint));
         /*struct MinkowskiPoint **/
-        var hull2 = new Array(count + 1);
-        hull2[0] = p;
+        var hull2 = [p];
+//        hull2[0] = p;
 
         for (/*int*/ var i = 0; i < count; i++) {
             /*int*/
@@ -392,7 +393,8 @@ var GJKRecurse = function (/*const struct SupportContext **/ctx, /*const struct 
                 cpAssertWarn(iteration < WARN_GJK_ITERATIONS, "High GJK.EPA iterations: " + iteration);
             }
             // The triangle v0, p, v1 contains the origin. Use EPA to find the MSA.
-            return EPA(ctx, v0, p, v1);
+//            return EPA(ctx, v0, p, v1);
+            return EPARecurse(ctx, 3, [v0, p, v1], 1);
         } else {
             // The new point must be farther along the normal than the existing points.
             var nx = n.x;
@@ -404,7 +406,11 @@ var GJKRecurse = function (/*const struct SupportContext **/ctx, /*const struct 
                 }
                 return new ClosestPoints(v0, v1);
             } else {
-                if (ClosestDist(v0.ab, p.ab) < ClosestDist(p.ab, v1.ab)) {
+//                if (ClosestDist(v0.ab, p.ab) < ClosestDist(p.ab, v1.ab)) {
+                var v0ab = v0.ab;
+                var v1ab = v1.ab;
+                var pab = p.ab;
+                if (cpvlengthsq(LerpT(v0ab, pab, ClosestT(v0ab, pab))) < cpvlengthsq(LerpT(pab, v1ab, ClosestT(pab, v1ab)))) {
                     return GJKRecurse(ctx, v0, p, iteration + 1);
                 } else {
                     return GJKRecurse(ctx, p, v1, iteration + 1);
@@ -416,6 +422,7 @@ var GJKRecurse = function (/*const struct SupportContext **/ctx, /*const struct 
 
 //static struct SupportPoint
 var ShapePoint = function (/*const cpShape **/shape, /*const int*/ i) {
+
     switch (shape.type) {
         case CP_CIRCLE_SHAPE:
         {
@@ -478,8 +485,8 @@ var GJK = function (/*const struct SupportContext **/ctx, /*cpCollisionID **/idR
     } else {
         /*cpVect*/
 //        var axis = cpvperp(cpvsub(ctx.shape1.bb.center(), ctx.shape2.bb.center()));
-        var bb1Center = ctx.shape1.bb.center();
-        var bb2Center = ctx.shape2.bb.center();
+        var bb1Center = ctx.shape1.bbCenter;
+        var bb2Center = ctx.shape2.bbCenter;
         var axisY = bb1Center.x - bb2Center.x;
         var axisX = -bb1Center.y + bb2Center.y;
 
@@ -649,7 +656,7 @@ var ContactPoints = function (/*const struct Edge*/ e1, /*const struct Edge*/ e2
         var pick = cpvdot(e1.n, points.n) + cpvdot(e2.n, points.n);
 
         if (
-            (pick != 0.0 && pick > 0.0) ||
+                pick > 0.0 ||
                 // If the edges are both perfectly aligned weird things happen.
                 // This is *very* common at the start of a simulation.
                 // Pick the longest edge as the reference to break the tie.
@@ -704,10 +711,14 @@ var CircleToSegment = function (/*const cpCircleShape **/circleShape, /*const cp
         /*cpVect*/
         var n = con.n;
 
+        var a_tangent = segmentShape.a_tangent;
+        var b_tangent = segmentShape.b_tangent;
+        var rot = segmentShape.body.rot;
+
         // Reject endcap collisions if tangents are provided.
         if (
-            (closest_t != 0.0 || (segmentShape.a_tangent.x == 0 && segmentShape.a_tangent.y == 0) || cpvdot(n, cpvrotate(segmentShape.a_tangent, segmentShape.body.rot)) >= 0.0) &&
-                (closest_t != 1.0 || (segmentShape.b_tangent.x == 0 && segmentShape.b_tangent.y == 0) || cpvdot(n, cpvrotate(segmentShape.b_tangent, segmentShape.body.rot)) >= 0.0)
+            (closest_t != 0.0 || (a_tangent.x == 0 && a_tangent.y == 0) || cpvdot(n, cpvrotate(a_tangent, rot)) >= 0.0) &&
+                (closest_t != 1.0 || (b_tangent.x == 0 && b_tangent.y == 0) || cpvdot(n, cpvrotate(b_tangent, rot)) >= 0.0)
             ) {
             arr.push(con);
             return 1;
